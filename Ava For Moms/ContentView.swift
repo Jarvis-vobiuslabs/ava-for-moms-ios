@@ -7,7 +7,7 @@ struct ContentView: View {
         if hasOnboarded {
             MainTabView()
         } else {
-            OnboardingView(onComplete: { hasOnboarded = true })
+            OnboardingFlowView(onComplete: { hasOnboarded = true })
         }
     }
 }
