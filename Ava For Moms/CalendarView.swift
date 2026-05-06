@@ -133,10 +133,7 @@ struct CalendarView: View {
                                 .fill(AvaTheme.blushTerracotta)
                                 .frame(width: 28, height: 28)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Heads up —")
-                                    .font(AvaTheme.font(13, weight: .heavy))
-                                    .foregroundStyle(AvaTheme.ink)
-                                    + Text(" if Mia's dentist runs long, you'll be tight for grocery pickup. Want me to move pickup to 3?")
+                                Text("**Heads up —** if Mia's dentist runs long, you'll be tight for grocery pickup. Want me to move pickup to 3?")
                                     .font(AvaTheme.font(13, weight: .medium))
                                     .foregroundStyle(AvaTheme.ink)
                             }

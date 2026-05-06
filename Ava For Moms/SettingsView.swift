@@ -77,11 +77,7 @@ struct SettingsView: View {
 
                     // ── Privacy note ──────────────────────────────────────
                     HStack(spacing: 6) {
-                        Text("🌿")
-                        Text("Private by design.")
-                            .font(AvaTheme.font(13.5, weight: .heavy))
-                            .foregroundStyle(AvaTheme.ink)
-                        + Text(" Your Ava lives on your phone.")
+                        Text("🌿 **Private by design.** Your Ava lives on your phone.")
                             .font(AvaTheme.font(13.5, weight: .medium))
                             .foregroundStyle(AvaTheme.ink)
                     }
