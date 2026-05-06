@@ -86,14 +86,11 @@ struct OnboardingFamilyView: View {
             .padding(16)
             .background(AvaTheme.cream)
             .clipShape(
-                RoundedRectangle(cornerRadius: data.hasPartner ? 0 : 18)
-                    .rect(cornerRadius: 18,
-                          style: .continuous)
-            )
-            .clipShape(
                 UnevenRoundedRectangle(
-                    topLeadingRadius: 18, bottomLeadingRadius: data.hasPartner ? 0 : 18,
-                    bottomTrailingRadius: data.hasPartner ? 0 : 18, topTrailingRadius: 18
+                    topLeadingRadius: 18,
+                    bottomLeadingRadius: data.hasPartner ? 0 : 18,
+                    bottomTrailingRadius: data.hasPartner ? 0 : 18,
+                    topTrailingRadius: 18
                 )
             )
 

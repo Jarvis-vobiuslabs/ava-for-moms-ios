@@ -195,18 +195,19 @@ struct PaywallView: View {
                     .foregroundStyle(isPro ? AvaTheme.terracottaDeep : .white)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 16)
-                    .background(
-                        Capsule().fill(isPro ? .white : AvaTheme.blushTerracotta)
-                    )
+                    .background {
+                        if isPro { Capsule().fill(.white) }
+                        else     { Capsule().fill(AvaTheme.blushTerracotta) }
+                    }
             }
             .buttonStyle(.plain)
             .padding(.horizontal, 16)
             .padding(.bottom, 18)
         }
-        .background(
-            isPro ? AnchorView() : nil
-        )
-        .background(isPro ? AnyView(AvaTheme.blushTerracotta) : AnyView(AvaTheme.cream))
+        .background {
+            if isPro { AvaTheme.blushTerracotta }
+            else     { AvaTheme.cream }
+        }
         .clipShape(RoundedRectangle(cornerRadius: 26))
         .overlay(
             RoundedRectangle(cornerRadius: 26)
@@ -256,10 +257,6 @@ struct PaywallView: View {
     }
 }
 
-// Invisible placeholder used to satisfy ViewBuilder type constraints above
-private struct AnchorView: View {
-    var body: some View { Color.clear }
-}
 
 #Preview {
     let d = OnboardingData()

@@ -47,7 +47,7 @@ struct OnboardingLoadView: View {
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 18)
                     .background(
-                        Capsule().fill(canContinue ? AvaTheme.blushTerracotta : AvaTheme.line)
+                        Capsule().fill(canContinue ? AnyShapeStyle(AvaTheme.blushTerracotta) : AnyShapeStyle(AvaTheme.line))
                     )
                     .animation(.easeInOut(duration: 0.2), value: canContinue)
             }
