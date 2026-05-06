@@ -1,17 +1,36 @@
 import SwiftUI
 
 struct ContentView: View {
-    @AppStorage("hasOnboarded") private var hasOnboarded = false
+    @Environment(AuthManager.self) private var auth
 
     var body: some View {
-        if hasOnboarded {
+        switch auth.state {
+        case .loading:
+            splashView
+        case .authenticated:
             MainTabView()
-        } else {
-            OnboardingFlowView(onComplete: { hasOnboarded = true })
+        case .unauthenticated:
+            OnboardingFlowView()
+        }
+    }
+
+    // Shown for ~1 second while Supabase checks the existing session
+    private var splashView: some View {
+        ZStack {
+            AvaTheme.bg.ignoresSafeArea()
+            Circle()
+                .fill(AvaTheme.blushTerracotta)
+                .frame(width: 90, height: 90)
+                .overlay(
+                    Image(systemName: "face.smiling")
+                        .font(.system(size: 36, weight: .bold))
+                        .foregroundStyle(.white)
+                )
         }
     }
 }
 
 #Preview {
     ContentView()
+        .environment(AuthManager())
 }

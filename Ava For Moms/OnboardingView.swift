@@ -2,6 +2,7 @@ import SwiftUI
 
 struct OnboardingView: View {
     let onComplete: () -> Void
+    var onSignIn: (() -> Void)? = nil
 
     var body: some View {
         ZStack {
@@ -84,8 +85,8 @@ struct OnboardingView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 30)
 
-                Button(action: {}) {
-                    Text("Sign in")
+                Button(action: { onSignIn?() }) {
+                    Text("I already have an account")
                         .font(AvaTheme.font(13, weight: .bold))
                         .foregroundStyle(AvaTheme.inkMute)
                 }

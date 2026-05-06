@@ -1,20 +1,18 @@
 import SwiftUI
 
 struct OnboardingFlowView: View {
-    let onComplete: () -> Void
-
     @State private var step = 0
     @State private var data = OnboardingData()
     @State private var goingForward = true
+    @State private var showSignIn = false   // "I already have an account" sheet
 
-    private let totalSteps = 5   // steps 1–5 show progress bar
+    private let totalSteps = 5  // progress bar covers steps 1–5
 
     var body: some View {
         ZStack(alignment: .top) {
             AvaTheme.bg.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                // Progress bar — only visible on steps 1–5
                 if step > 0 && step <= totalSteps {
                     progressBar
                         .padding(.top, 58)
@@ -23,7 +21,6 @@ struct OnboardingFlowView: View {
                         .transition(.opacity)
                 }
 
-                // Step content
                 currentStep
                     .id(step)
                     .transition(pageTransition)
@@ -31,6 +28,11 @@ struct OnboardingFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step > 0 && step <= totalSteps)
+        // Returning user sheet — sign in without going through onboarding
+        .sheet(isPresented: $showSignIn) {
+            AuthView(onboardingData: nil, onComplete: { showSignIn = false })
+                .environment(AuthManager())   // sheet gets its own — auth state change propagates globally
+        }
     }
 
     // MARK: - Step router
@@ -39,7 +41,10 @@ struct OnboardingFlowView: View {
     private var currentStep: some View {
         switch step {
         case 0:
-            OnboardingView(onComplete: advance)
+            OnboardingView(
+                onComplete: advance,
+                onSignIn: { showSignIn = true }
+            )
         case 1:
             OnboardingNameView(data: data, onNext: advance, onBack: back)
         case 2:
@@ -50,8 +55,13 @@ struct OnboardingFlowView: View {
             OnboardingLoadView(data: data, onNext: advance, onBack: back)
         case 5:
             OnboardingPrivacyView(data: data, onNext: advance, onBack: back)
+        case 6:
+            // Paywall — onComplete advances to auth step
+            PaywallView(data: data, onComplete: advance)
         default:
-            PaywallView(data: data, onComplete: onComplete)
+            // Step 7 — create account, save onboarding data, enter app
+            // Auth state change automatically triggers ContentView to show MainTabView
+            AuthView(onboardingData: data, onComplete: {})
         }
     }
 
@@ -89,5 +99,6 @@ struct OnboardingFlowView: View {
 }
 
 #Preview {
-    OnboardingFlowView(onComplete: {})
+    OnboardingFlowView()
+        .environment(AuthManager())
 }
