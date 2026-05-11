@@ -107,60 +107,59 @@ final class AuthManager: NSObject {
     }
 
     // MARK: - Save onboarding data to Supabase
-    // update() and insert() throw synchronously — separate try from await with let bindings
+    // Use [String: AnyJSON] (Sendable, no actor isolation) to avoid @MainActor
+    // encoding issues. update()/insert() throw synchronously — split try from await.
 
     func saveOnboardingData(_ data: OnboardingData) async {
         guard let userId = currentUserId else { return }
         do {
-            // Update profile (returning: .minimal avoids a SELECT round-trip)
+            let workStatus = data.workStatus.rawValue
+                .lowercased()
+                .replacingOccurrences(of: " ", with: "_")
+
+            let loadAreas = AnyJSON.array(
+                data.mentalLoadAreas.map { AnyJSON.string($0.rawValue) }
+            )
+
+            let profileUpdate: [String: AnyJSON] = [
+                "name":                 .string(data.name),
+                "work_status":          .string(workStatus),
+                "has_school_pickup":    .bool(data.hasSchoolPickup),
+                "mental_load_areas":    loadAreas,
+                "onboarding_completed": .bool(true),
+            ]
             let profileQuery = try supabase
                 .from("profiles")
-                .update(
-                    ProfileUpdate(
-                        name: data.name,
-                        workStatus: data.workStatus.rawValue
-                            .lowercased()
-                            .replacingOccurrences(of: " ", with: "_"),
-                        hasSchoolPickup: data.hasSchoolPickup,
-                        mentalLoadAreas: data.mentalLoadAreas.map(\.rawValue),
-                        onboardingCompleted: true
-                    ),
-                    returning: .minimal
-                )
+                .update(profileUpdate, returning: .minimal)
                 .eq("id", value: userId)
             try await profileQuery.execute()
 
-            // Insert partner
+            // Partner
             if data.hasPartner, !data.partnerName.trimmingCharacters(in: .whitespaces).isEmpty {
+                let partner: [String: AnyJSON] = [
+                    "user_id":      .string(userId.uuidString),
+                    "name":         .string(data.partnerName),
+                    "relationship": .string("partner"),
+                    "color_hex":    .string("#B6A092"),
+                ]
                 let partnerQuery = try supabase
                     .from("family_members")
-                    .insert(
-                        FamilyMemberInsert(
-                            userId: userId.uuidString,
-                            name: data.partnerName,
-                            relationship: "partner",
-                            age: nil,
-                            colorHex: "#B6A092"
-                        ),
-                        returning: .minimal
-                    )
+                    .insert(partner, returning: .minimal)
                 try await partnerQuery.execute()
             }
 
-            // Insert kids
+            // Kids
             for kid in data.kids where !kid.name.trimmingCharacters(in: .whitespaces).isEmpty {
+                let kidRow: [String: AnyJSON] = [
+                    "user_id":      .string(userId.uuidString),
+                    "name":         .string(kid.name),
+                    "relationship": .string("child"),
+                    "age":          .integer(kid.age),
+                    "color_hex":    .string("#A5C09A"),
+                ]
                 let kidQuery = try supabase
                     .from("family_members")
-                    .insert(
-                        FamilyMemberInsert(
-                            userId: userId.uuidString,
-                            name: kid.name,
-                            relationship: "child",
-                            age: kid.age,
-                            colorHex: "#A5C09A"
-                        ),
-                        returning: .minimal
-                    )
+                    .insert(kidRow, returning: .minimal)
                 try await kidQuery.execute()
             }
         } catch {
@@ -254,39 +253,11 @@ extension AuthManager: ASAuthorizationControllerPresentationContextProviding {
                     ?? scene.windows.first
                     ?? UIWindow(windowScene: scene)
             }
-            return UIWindow()
+            // No scene found — should not happen in a running app
+            let fallbackScene = UIApplication.shared.connectedScenes
+                .compactMap { $0 as? UIWindowScene }.first
+            return fallbackScene.map { UIWindow(windowScene: $0) } ?? UIWindow()
         }
     }
 }
 
-// MARK: - Encodable DB models (file-private)
-
-private struct ProfileUpdate: Encodable {
-    let name: String
-    let workStatus: String
-    let hasSchoolPickup: Bool
-    let mentalLoadAreas: [String]
-    let onboardingCompleted: Bool
-
-    enum CodingKeys: String, CodingKey {
-        case name
-        case workStatus          = "work_status"
-        case hasSchoolPickup     = "has_school_pickup"
-        case mentalLoadAreas     = "mental_load_areas"
-        case onboardingCompleted = "onboarding_completed"
-    }
-}
-
-private struct FamilyMemberInsert: Encodable {
-    let userId: String
-    let name: String
-    let relationship: String
-    let age: Int?
-    let colorHex: String
-
-    enum CodingKeys: String, CodingKey {
-        case name, relationship, age
-        case userId   = "user_id"
-        case colorHex = "color_hex"
-    }
-}
