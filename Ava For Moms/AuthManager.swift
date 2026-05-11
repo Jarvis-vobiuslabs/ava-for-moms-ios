@@ -1,60 +1,62 @@
 import SwiftUI
+import Combine
 import Supabase
 import AuthenticationServices
 import CryptoKit
 
-// ObservableObject (not @Observable) — @Observable + NSObject + @MainActor
-// causes macro expansion conflicts in Swift 6. ObservableObject is stable here.
+// ─────────────────────────────────────────────────────────────────────────────
+// File-level helper — Task{} lives here, outside @Observable, so the
+// @Observable macro expansion doesn't interfere with Swift 6 type checking.
+// ─────────────────────────────────────────────────────────────────────────────
 
-@MainActor
-final class AuthManager: NSObject, ObservableObject {
+private func makeAuthListenerTask(
+    callback: @MainActor @escaping (AuthChangeEvent, Session?) -> Void
+) -> _Concurrency.Task<Void, Never> {
+    _Concurrency.Task {
+        for await authState in supabase.auth.authStateChanges {
+            await MainActor.run { callback(authState.event, authState.session) }
+        }
+    }
+}
 
-    // MARK: - State
+// ─────────────────────────────────────────────────────────────────────────────
+// AuthManager
+// ─────────────────────────────────────────────────────────────────────────────
+
+@Observable
+final class AuthManager {
 
     enum AuthState { case loading, authenticated, unauthenticated }
 
-    @Published var state: AuthState = .loading
-    @Published var currentUserId: UUID?
-    @Published var isLoading = false
-    @Published var errorMessage: String?
+    var state: AuthState = .loading
+    var currentUserId: UUID?
+    var isLoading = false
+    var errorMessage: String?
 
-    private var appleSignInContinuation: CheckedContinuation<ASAuthorization, Error>?
-    private var pendingNonce: String?
+    @ObservationIgnored private let appleHandler = AppleSignInHandler()
+    @ObservationIgnored private var pendingNonce: String?
+    @ObservationIgnored private var listenerTask: _Concurrency.Task<Void, Never>?
 
-    override init() {
-        super.init()
-        listenToAuthChanges()
-    }
-
-    // MARK: - Auth state listener
-
-    private func listenToAuthChanges() {
-        Task { [weak self] in
-            for await authState in supabase.auth.authStateChanges {
-                guard let self else { return }
-                switch authState.event {
-                case .initialSession:
-                    if let s = authState.session {
-                        self.currentUserId = s.user.id
-                        self.state = .authenticated
-                    } else {
-                        self.state = .unauthenticated
-                    }
-                case .signedIn:
-                    if let s = authState.session {
-                        self.currentUserId = s.user.id
-                        self.state = .authenticated
-                    }
-                case .signedOut, .userDeleted:
-                    self.currentUserId = nil
-                    self.state = .unauthenticated
-                case .tokenRefreshed:
-                    if let s = authState.session { self.currentUserId = s.user.id }
-                default: break
-                }
+    init() {
+        listenerTask = makeAuthListenerTask { [weak self] event, session in
+            guard let self else { return }
+            switch event {
+            case .initialSession:
+                if let s = session { self.currentUserId = s.user.id; self.state = .authenticated }
+                else               { self.state = .unauthenticated }
+            case .signedIn:
+                if let s = session { self.currentUserId = s.user.id; self.state = .authenticated }
+            case .signedOut, .userDeleted:
+                self.currentUserId = nil; self.state = .unauthenticated
+            case .tokenRefreshed:
+                if let s = session { self.currentUserId = s.user.id }
+            default: break
             }
         }
     }
+
+    deinit { listenerTask?.cancel() }
+
 
     // MARK: - Sign in with Apple
 
@@ -70,10 +72,10 @@ final class AuthManager: NSObject, ObservableObject {
             request.nonce = sha256(nonce)
 
             let authorization = try await withCheckedThrowingContinuation { cont in
-                appleSignInContinuation = cont
+                appleHandler.continuation = cont
                 let controller = ASAuthorizationController(authorizationRequests: [request])
-                controller.delegate = self
-                controller.presentationContextProvider = self
+                controller.delegate = appleHandler
+                controller.presentationContextProvider = appleHandler
                 controller.performRequests()
             }
 
@@ -120,37 +122,39 @@ final class AuthManager: NSObject, ObservableObject {
     func saveOnboardingData(_ data: OnboardingData) async {
         guard let userId = currentUserId else { return }
         do {
-            let workStatus = data.workStatus.rawValue
-                .lowercased()
+            let workStatus = data.workStatus.rawValue.lowercased()
                 .replacingOccurrences(of: " ", with: "_")
-
             let profileUpdate: [String: AnyJSON] = [
-                "name":                 .string(data.name),
-                "work_status":          .string(workStatus),
-                "has_school_pickup":    .bool(data.hasSchoolPickup),
-                "mental_load_areas":    .array(data.mentalLoadAreas.map { .string($0.rawValue) }),
+                "name": .string(data.name),
+                "work_status": .string(workStatus),
+                "has_school_pickup": .bool(data.hasSchoolPickup),
+                "mental_load_areas": .array(data.mentalLoadAreas.map { .string($0.rawValue) }),
                 "onboarding_completed": .bool(true),
             ]
-            let profileQuery = try supabase.from("profiles")
+            let pq = try supabase.from("profiles")
                 .update(profileUpdate, returning: .minimal)
                 .eq("id", value: userId)
-            try await profileQuery.execute()
+            try await pq.execute()
 
             if data.hasPartner, !data.partnerName.trimmingCharacters(in: .whitespaces).isEmpty {
-                let partner: [String: AnyJSON] = [
-                    "user_id": .string(userId.uuidString), "name": .string(data.partnerName),
-                    "relationship": .string("partner"), "color_hex": .string("#B6A092"),
+                let row: [String: AnyJSON] = [
+                    "user_id": .string(userId.uuidString),
+                    "name": .string(data.partnerName),
+                    "relationship": .string("partner"),
+                    "color_hex": .string("#B6A092"),
                 ]
-                try await (try supabase.from("family_members").insert(partner, returning: .minimal)).execute()
+                try await (try supabase.from("family_members").insert(row, returning: .minimal)).execute()
             }
 
             for kid in data.kids where !kid.name.trimmingCharacters(in: .whitespaces).isEmpty {
-                let kidRow: [String: AnyJSON] = [
-                    "user_id": .string(userId.uuidString), "name": .string(kid.name),
-                    "relationship": .string("child"), "age": .integer(kid.age),
+                let row: [String: AnyJSON] = [
+                    "user_id": .string(userId.uuidString),
+                    "name": .string(kid.name),
+                    "relationship": .string("child"),
+                    "age": .integer(kid.age),
                     "color_hex": .string("#A5C09A"),
                 ]
-                try await (try supabase.from("family_members").insert(kidRow, returning: .minimal)).execute()
+                try await (try supabase.from("family_members").insert(row, returning: .minimal)).execute()
             }
         } catch {
             errorMessage = error.localizedDescription
@@ -191,46 +195,5 @@ final class AuthManager: NSObject, ObservableObject {
 
     private func sha256(_ input: String) -> String {
         SHA256.hash(data: Data(input.utf8)).map { String(format: "%02x", $0) }.joined()
-    }
-}
-
-// MARK: - Apple delegate (nonisolated — bridge back to MainActor via MainActor.run)
-
-extension AuthManager: ASAuthorizationControllerDelegate {
-    nonisolated func authorizationController(
-        controller: ASAuthorizationController,
-        didCompleteWithAuthorization authorization: ASAuthorization
-    ) {
-        Task {
-            await MainActor.run { [self] in
-                appleSignInContinuation?.resume(returning: authorization)
-                appleSignInContinuation = nil
-            }
-        }
-    }
-
-    nonisolated func authorizationController(
-        controller: ASAuthorizationController,
-        didCompleteWithError error: Error
-    ) {
-        Task {
-            await MainActor.run { [self] in
-                appleSignInContinuation?.resume(throwing: error)
-                appleSignInContinuation = nil
-            }
-        }
-    }
-}
-
-extension AuthManager: ASAuthorizationControllerPresentationContextProviding {
-    nonisolated func presentationAnchor(for controller: ASAuthorizationController) -> ASPresentationAnchor {
-        MainActor.assumeIsolated {
-            let scenes = UIApplication.shared.connectedScenes.compactMap { $0 as? UIWindowScene }
-            let active = scenes.first { $0.activationState == .foregroundActive } ?? scenes.first
-            if let scene = active {
-                return scene.windows.first { $0.isKeyWindow } ?? scene.windows.first ?? UIWindow(windowScene: scene)
-            }
-            return UIWindow(windowScene: scenes.first ?? UIWindowScene())
-        }
     }
 }

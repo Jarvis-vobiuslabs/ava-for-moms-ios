@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @EnvironmentObject private var auth: AuthManager
+    @Environment(AuthManager.self) private var auth
 
     var body: some View {
         switch auth.state {
@@ -30,6 +30,5 @@ struct ContentView: View {
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(AuthManager())
+    ContentView().environment(AuthManager())
 }

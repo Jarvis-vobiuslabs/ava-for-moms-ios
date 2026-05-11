@@ -2,7 +2,7 @@ import SwiftUI
 import AuthenticationServices
 
 struct AuthView: View {
-    @EnvironmentObject private var auth: AuthManager
+    @Environment(AuthManager.self) private var auth
     var onboardingData: OnboardingData?
     var onComplete: () -> Void
 
@@ -31,7 +31,6 @@ struct AuthView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
-                    // Header
                     VStack(alignment: .leading, spacing: 10) {
                         Text(mode == .signUp ? "Create your account" : "Welcome back")
                             .font(AvaTheme.font(30, weight: .heavy))
@@ -42,9 +41,9 @@ struct AuthView: View {
                     }
                     .padding(.horizontal, 28).padding(.top, 60).padding(.bottom, 32)
 
-                    // Apple
+                    // Apple Sign In
                     Button {
-                        Task { await auth.signInWithApple(); if auth.state == .authenticated { await finishAuth() } }
+                        _Concurrency.Task { await auth.signInWithApple(); if auth.state == .authenticated { await finishAuth() } }
                     } label: {
                         HStack(spacing: 10) {
                             Image(systemName: "apple.logo").font(.system(size: 18, weight: .semibold))
@@ -56,7 +55,6 @@ struct AuthView: View {
                     }
                     .buttonStyle(.plain).padding(.horizontal, 28)
 
-                    // Divider
                     HStack(spacing: 12) {
                         Rectangle().fill(AvaTheme.line).frame(height: 1)
                         Text("or").font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.inkSoft)
@@ -64,7 +62,7 @@ struct AuthView: View {
                     }
                     .padding(.horizontal, 28).padding(.vertical, 20)
 
-                    // Fields
+                    // Email + password
                     VStack(spacing: 12) {
                         inputField("envelope", placeholder: "Email address", text: $email,
                                    field: .email, secure: false,
@@ -75,7 +73,6 @@ struct AuthView: View {
                     }
                     .padding(.horizontal, 28)
 
-                    // Error
                     if let err = auth.errorMessage {
                         HStack(spacing: 6) {
                             Image(systemName: "exclamationmark.circle.fill")
@@ -87,9 +84,8 @@ struct AuthView: View {
                         .transition(.move(edge: .top).combined(with: .opacity))
                     }
 
-                    // CTA
                     Button {
-                        Task {
+                        _Concurrency.Task {
                             if mode == .signUp { await auth.signUp(email: email, password: password) }
                             else               { await auth.signIn(email: email, password: password) }
                             if auth.state == .authenticated { await finishAuth() }
@@ -110,7 +106,6 @@ struct AuthView: View {
                     .buttonStyle(.plain).disabled(!canSubmit)
                     .padding(.horizontal, 28).padding(.top, 20)
 
-                    // Toggle
                     Button { withAnimation { mode = mode == .signUp ? .signIn : .signUp } } label: {
                         Text(mode == .signUp
                              ? "Already have an account? **Sign in**"
@@ -152,19 +147,17 @@ struct AuthView: View {
             .submitLabel(field == .email ? .next : .done)
             .onSubmit {
                 if field == .email { focused = .password }
-                else { Task {
+                else { _Concurrency.Task {
                     if mode == .signUp { await auth.signUp(email: email, password: password) }
                     else               { await auth.signIn(email: email, password: password) }
                     if auth.state == .authenticated { await finishAuth() }
                 }}
             }
         }
-        .padding(16)
-        .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+        .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
     }
 }
 
 #Preview {
-    AuthView(onboardingData: nil, onComplete: {})
-        .environmentObject(AuthManager())
+    AuthView(onboardingData: nil, onComplete: {}).environment(AuthManager())
 }

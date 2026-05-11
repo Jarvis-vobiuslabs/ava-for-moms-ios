@@ -99,5 +99,5 @@ struct OnboardingFlowView: View {
 
 #Preview {
     OnboardingFlowView()
-        .environmentObject(AuthManager())
+        .environment(AuthManager())
 }
