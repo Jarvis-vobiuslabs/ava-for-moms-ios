@@ -28,10 +28,9 @@ struct OnboardingFlowView: View {
             }
         }
         .animation(.easeInOut(duration: 0.2), value: step > 0 && step <= totalSteps)
-        // Returning user sheet — sign in without going through onboarding
+        // Returning user sheet — environmentObject propagates automatically into sheets
         .sheet(isPresented: $showSignIn) {
             AuthView(onboardingData: nil, onComplete: { showSignIn = false })
-                .environment(AuthManager())   // sheet gets its own — auth state change propagates globally
         }
     }
 
@@ -100,5 +99,5 @@ struct OnboardingFlowView: View {
 
 #Preview {
     OnboardingFlowView()
-        .environment(AuthManager())
+        .environmentObject(AuthManager())
 }

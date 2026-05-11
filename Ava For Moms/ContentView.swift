@@ -1,7 +1,7 @@
 import SwiftUI
 
 struct ContentView: View {
-    @Environment(AuthManager.self) private var auth
+    @EnvironmentObject private var auth: AuthManager
 
     var body: some View {
         switch auth.state {
@@ -14,7 +14,6 @@ struct ContentView: View {
         }
     }
 
-    // Shown for ~1 second while Supabase checks the existing session
     private var splashView: some View {
         ZStack {
             AvaTheme.bg.ignoresSafeArea()
@@ -32,5 +31,5 @@ struct ContentView: View {
 
 #Preview {
     ContentView()
-        .environment(AuthManager())
+        .environmentObject(AuthManager())
 }
