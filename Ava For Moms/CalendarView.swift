@@ -3,6 +3,7 @@ import SwiftUI
 struct CalendarView: View {
     let onChatTap: () -> Void
     @State private var selectedDay = 22
+    @State private var showAddEvent = false
 
     private let weekDays = ["M","T","W","T","F","S","S"]
     private let weekNums = [21,22,23,24,25,26,27]
@@ -26,7 +27,7 @@ struct CalendarView: View {
                                 .tracking(-0.6)
                         }
                         Spacer()
-                        Button(action: {}) {
+                        Button { showAddEvent = true } label: {
                             Circle()
                                 .fill(AvaTheme.blushTerracotta)
                                 .frame(width: 44, height: 44)
@@ -167,6 +168,7 @@ struct CalendarView: View {
             .padding(.trailing, 18)
             .padding(.bottom, 100)
         }
+        .sheet(isPresented: $showAddEvent) { AddEventView(onDismiss: { showAddEvent = false }) }
     }
 
     // ── Data ────────────────────────────────────────────────────────────

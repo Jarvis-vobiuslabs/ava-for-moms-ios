@@ -3,6 +3,7 @@ import SwiftUI
 struct GroceryView: View {
 
     @State private var checked: Set<String> = ["Strawberries", "Whole milk"]
+    @State private var avaSuggestionVisible = true
 
     var body: some View {
         ZStack {
@@ -40,6 +41,7 @@ struct GroceryView: View {
                     .padding(.bottom, 14)
 
                     // ── Ava suggestion ────────────────────────────────────
+                    if avaSuggestionVisible {
                     HStack(spacing: 12) {
                         Circle()
                             .fill(AvaTheme.blushTerracotta)
@@ -54,7 +56,7 @@ struct GroceryView: View {
                             .foregroundStyle(.white)
                             .lineSpacing(2)
                         Spacer()
-                        Button(action: {}) {
+                        Button { withAnimation { avaSuggestionVisible = false } } label: {
                             Text("OK")
                                 .font(AvaTheme.font(11.5, weight: .heavy))
                                 .foregroundStyle(AvaTheme.terracottaDeep)
@@ -69,6 +71,8 @@ struct GroceryView: View {
                     .clipShape(RoundedRectangle(cornerRadius: 22))
                     .padding(.horizontal, 18)
                     .padding(.bottom, 16)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    } // end if avaSuggestionVisible
 
                     // ── Sections ──────────────────────────────────────────
                     ForEach(grocerySections) { section in

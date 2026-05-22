@@ -6,6 +6,8 @@ struct PaywallView: View {
 
     @State private var isAnnual = true
     @State private var selectedPlan: Plan = .pro
+    @State private var showTerms = false
+    @State private var showPrivacy = false
 
     enum Plan { case standard, pro }
 
@@ -102,6 +104,8 @@ struct PaywallView: View {
             }
         }
         .background(AvaTheme.bg.ignoresSafeArea())
+        .sheet(isPresented: $showTerms)   { LegalView(type: .terms) }
+        .sheet(isPresented: $showPrivacy) { LegalView(type: .privacy) }
     }
 
     // MARK: - Plan card
@@ -246,7 +250,9 @@ struct PaywallView: View {
 
     private func footerLink(_ label: String) -> some View {
         Button(action: {
-            // TODO: Open URL for terms/privacy, call RevenueCat restore for "Restore purchases"
+            if label == "Terms"    { showTerms   = true }
+            if label == "Privacy"  { showPrivacy = true }
+            // Restore purchases: TODO wire RevenueCat
         }) {
             Text(label)
                 .font(AvaTheme.font(12, weight: .semibold))

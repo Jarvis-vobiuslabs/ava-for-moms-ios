@@ -2,6 +2,8 @@ import SwiftUI
 
 struct HomeView: View {
     let onChatTap: () -> Void
+    @State private var showAccount = false
+    @State private var avaSuggestionDismissed = false
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -22,20 +24,24 @@ struct HomeView: View {
                                 .foregroundStyle(AvaTheme.inkMute)
                         }
                         Spacer()
-                        Circle()
-                            .fill(AvaTheme.blushSage)
-                            .frame(width: 40, height: 40)
-                            .overlay(
-                                Text("C")
-                                    .font(AvaTheme.font(15, weight: .heavy))
-                                    .foregroundStyle(.white)
-                            )
+                        Button { showAccount = true } label: {
+                            Circle()
+                                .fill(AvaTheme.blushSage)
+                                .frame(width: 40, height: 40)
+                                .overlay(
+                                    Text("C")
+                                        .font(AvaTheme.font(15, weight: .heavy))
+                                        .foregroundStyle(.white)
+                                )
+                        }
+                        .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 22)
                     .padding(.top, 60)
                     .padding(.bottom, 16)
 
                     // ── Ava's Take card ──────────────────────────────────
+                    if !avaSuggestionDismissed {
                     ZStack(alignment: .topTrailing) {
                         Circle()
                             .fill(.white.opacity(0.12))
@@ -71,7 +77,7 @@ struct HomeView: View {
                                         .clipShape(Capsule())
                                 }
                                 .buttonStyle(.plain)
-                                Button(action: {}) {
+                                Button { avaSuggestionDismissed = true } label: {
                                     Text("Later")
                                         .font(AvaTheme.font(13, weight: .semibold))
                                         .foregroundStyle(.white)
@@ -86,6 +92,8 @@ struct HomeView: View {
                     .background(AvaTheme.blushTerracotta)
                     .clipShape(RoundedRectangle(cornerRadius: 28))
                     .padding(.horizontal, 18)
+                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    } // end if !avaSuggestionDismissed
 
                     // ── Quick tiles ──────────────────────────────────────
                     HStack(spacing: 10) {
@@ -157,6 +165,10 @@ struct HomeView: View {
             .padding(.trailing, 18)
             .padding(.bottom, 100)
         }
+        .sheet(isPresented: $showAccount) {
+            AccountView()
+        }
+        .animation(.easeInOut(duration: 0.25), value: avaSuggestionDismissed)
     }
 
     // ── Sub-views ────────────────────────────────────────────────────────
