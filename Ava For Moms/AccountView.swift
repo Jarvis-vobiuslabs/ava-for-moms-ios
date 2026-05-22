@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 
 struct AccountView: View {
     @Environment(AuthManager.self) private var auth
