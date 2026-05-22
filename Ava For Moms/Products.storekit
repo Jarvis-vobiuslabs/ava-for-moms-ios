@@ -1,0 +1,118 @@
+{
+  "identifier" : "AvaProducts",
+  "nonConsumableProducts" : [],
+  "nonRenewingSubscriptions" : [],
+  "products" : [],
+  "settings" : {
+    "_askToBuyEnabled" : false,
+    "_billingGracePeriodEnabled" : false,
+    "_billingRetryEnabled" : false,
+    "_locale" : "en_US",
+    "_storeKitErrors" : []
+  },
+  "subscriptionGroups" : [
+    {
+      "id" : "AvaGroup",
+      "localizations" : [],
+      "name" : "Ava",
+      "subscriptions" : [
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "9.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Your personal AI assistant for managing the mental load.",
+              "displayName" : "Ava",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.avaformoms.ava.standard.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Ava Standard Monthly",
+          "subscriptionGroupID" : "AvaGroup",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "74.99",
+          "familyShareable" : false,
+          "groupNumber" : 1,
+          "introductoryOffer" : null,
+          "localizations" : [
+            {
+              "description" : "Your personal AI assistant for managing the mental load.",
+              "displayName" : "Ava",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.avaformoms.ava.standard.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Ava Standard Annual",
+          "subscriptionGroupID" : "AvaGroup",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "29.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "introductoryOffer" : {
+            "offerID" : "trial",
+            "paymentMode" : "FreeTrial",
+            "periodCount" : 1,
+            "periodUnit" : "week",
+            "type" : "introductoryOffer"
+          },
+          "localizations" : [
+            {
+              "description" : "Deeper AI, expanded memory, weekly life summaries.",
+              "displayName" : "Ava Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.avaformoms.ava.pro.monthly",
+          "recurringSubscriptionPeriod" : "P1M",
+          "referenceName" : "Ava Pro Monthly",
+          "subscriptionGroupID" : "AvaGroup",
+          "type" : "RecurringSubscription"
+        },
+        {
+          "adHocOffers" : [],
+          "codeOffers" : [],
+          "displayPrice" : "224.99",
+          "familyShareable" : false,
+          "groupNumber" : 2,
+          "introductoryOffer" : {
+            "offerID" : "trial",
+            "paymentMode" : "FreeTrial",
+            "periodCount" : 1,
+            "periodUnit" : "week",
+            "type" : "introductoryOffer"
+          },
+          "localizations" : [
+            {
+              "description" : "Deeper AI, expanded memory, weekly life summaries.",
+              "displayName" : "Ava Pro",
+              "locale" : "en_US"
+            }
+          ],
+          "productID" : "com.avaformoms.ava.pro.annual",
+          "recurringSubscriptionPeriod" : "P1Y",
+          "referenceName" : "Ava Pro Annual",
+          "subscriptionGroupID" : "AvaGroup",
+          "type" : "RecurringSubscription"
+        }
+      ]
+    }
+  ],
+  "version" : {
+    "major" : 2,
+    "minor" : 0
+  }
+}
