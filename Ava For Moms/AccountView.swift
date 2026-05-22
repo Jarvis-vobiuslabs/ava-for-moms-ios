@@ -11,6 +11,7 @@ struct AccountView: View {
     @State private var isDeleting = false
     @State private var showTerms = false
     @State private var showPrivacy = false
+    @State private var showMemories = false
     @State private var deleteError: String?
 
     var body: some View {
@@ -36,6 +37,12 @@ struct AccountView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 24).padding(.top, 60).padding(.bottom, 24)
+
+                    // ── Ava ───────────────────────────────────────────────
+                    sectionHeader("AVA")
+                    settingsCard {
+                        row(icon: "brain", title: "What Ava remembers") { showMemories = true }
+                    }
 
                     // ── Legal ──────────────────────────────────────────────
                     sectionHeader("LEGAL")
@@ -138,8 +145,9 @@ struct AccountView: View {
         } message: {
             Text("This cannot be undone.")
         }
-        .sheet(isPresented: $showTerms) { LegalView(type: .terms) }
-        .sheet(isPresented: $showPrivacy) { LegalView(type: .privacy) }
+        .sheet(isPresented: $showTerms)    { LegalView(type: .terms) }
+        .sheet(isPresented: $showPrivacy)  { LegalView(type: .privacy) }
+        .sheet(isPresented: $showMemories) { MemoriesView() }
         .overlay {
             if isDeleting {
                 ZStack {

@@ -2,11 +2,15 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab: AvaTab = .home
+    @State private var taskStore  = TaskStore()
+    @State private var groceryStore = GroceryStore()
 
     var body: some View {
         ZStack(alignment: .bottom) {
             tabContent
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .environment(taskStore)
+                .environment(groceryStore)
 
             AvaTabBar(selected: $selectedTab)
                 .padding(.bottom, 20)
@@ -32,5 +36,5 @@ struct MainTabView: View {
 }
 
 #Preview {
-    MainTabView()
+    MainTabView().environment(AuthManager())
 }
