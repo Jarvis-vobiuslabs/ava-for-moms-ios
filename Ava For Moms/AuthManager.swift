@@ -51,7 +51,7 @@ final class AuthManager {
                 if let s = session {
                     self.currentUserId = s.user.id
                     self.state = .authenticated
-                    await self.loadProfile(userId: s.user.id)
+                    _Concurrency.Task { await self.loadProfile(userId: s.user.id) }
                 } else {
                     self.state = .unauthenticated
                 }
@@ -59,7 +59,7 @@ final class AuthManager {
                 if let s = session {
                     self.currentUserId = s.user.id
                     self.state = .authenticated
-                    await self.loadProfile(userId: s.user.id)
+                    _Concurrency.Task { await self.loadProfile(userId: s.user.id) }
                 }
             case .signedOut, .userDeleted:
                 self.currentUserId = nil; self.state = .unauthenticated
