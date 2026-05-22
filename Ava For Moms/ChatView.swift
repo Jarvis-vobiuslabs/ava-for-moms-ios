@@ -148,7 +148,9 @@ struct ChatView: View {
         .background(AvaTheme.cream)
         .clipShape(Capsule())
         .shadow(color: AvaTheme.ink.opacity(0.08), radius: 8, x: 0, y: 4)
-        .padding(.horizontal, 14).padding(.bottom, 20)
+        .padding(.horizontal, 14)
+        .padding(.bottom, inputFocused ? 8 : 100)
+        .animation(.easeInOut(duration: 0.25), value: inputFocused)
     }
 
     private func sendMessage() {
