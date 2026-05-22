@@ -11,9 +11,12 @@ struct AuthView: View {
     @State private var step: Step = .email
     @State private var email = ""
     @State private var otp = ""
+    @State private var password = ""
     @State private var otpSent = false
+    @State private var usePassword = false
     @FocusState private var emailFocused: Bool
     @FocusState private var otpFocused: Bool
+    @FocusState private var passwordFocused: Bool
 
     init(onboardingData: OnboardingData?, onComplete: @escaping () -> Void) {
         self.onboardingData = onboardingData
@@ -23,6 +26,7 @@ struct AuthView: View {
     private var isNewUser: Bool { onboardingData != nil }
     private var emailValid: Bool { email.contains("@") && email.contains(".") }
     private var otpValid: Bool { otp.count == 6 }
+    private var passwordValid: Bool { password.count >= 6 }
 
     var body: some View {
         ZStack {
@@ -115,34 +119,68 @@ struct AuthView: View {
                     .font(AvaTheme.font(15, weight: .medium)).foregroundStyle(AvaTheme.ink)
                     .keyboardType(.emailAddress).textContentType(.emailAddress)
                     .autocorrectionDisabled().textInputAutocapitalization(.never)
-                    .focused($emailFocused).submitLabel(.done)
-                    .onSubmit { if emailValid { sendCode() } }
+                    .focused($emailFocused).submitLabel(usePassword ? .next : .done)
+                    .onSubmit { if usePassword { passwordFocused = true } else if emailValid { sendCode() } }
             }
             .padding(16)
             .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
             .padding(.horizontal, 28)
+
+            // Password field (when toggled)
+            if usePassword {
+                HStack(spacing: 12) {
+                    Image(systemName: "lock").font(.system(size: 15, weight: .medium))
+                        .foregroundStyle(AvaTheme.inkSoft).frame(width: 20)
+                    SecureField("Password", text: $password)
+                        .font(AvaTheme.font(15, weight: .medium)).foregroundStyle(AvaTheme.ink)
+                        .textContentType(.password)
+                        .focused($passwordFocused).submitLabel(.done)
+                        .onSubmit { if emailValid && passwordValid { signInWithPassword() } }
+                }
+                .padding(16)
+                .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+                .padding(.horizontal, 28)
+                .padding(.top, 10)
+                .transition(.move(edge: .top).combined(with: .opacity))
+            }
 
             // Error
             if let err = auth.errorMessage {
                 errorBanner(err).padding(.horizontal, 28).padding(.top, 12)
             }
 
-            // Send code button
-            Button(action: sendCode) {
+            // Primary action button
+            Button(action: usePassword ? signInWithPassword : sendCode) {
                 ZStack {
-                    Text("Send code →")
+                    Text(usePassword ? "Sign in →" : "Send code →")
                         .font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(.white)
                         .opacity(auth.isLoading ? 0 : 1)
                     if auth.isLoading { ProgressView().tint(.white) }
                 }
                 .frame(maxWidth: .infinity).padding(.vertical, 18)
-                .background(Capsule().fill(emailValid
+                .background(Capsule().fill((usePassword ? (emailValid && passwordValid) : emailValid)
                     ? AnyShapeStyle(AvaTheme.blushTerracotta)
                     : AnyShapeStyle(AvaTheme.line)))
                 .animation(.easeInOut(duration: 0.2), value: emailValid)
             }
-            .buttonStyle(.plain).disabled(!emailValid || auth.isLoading)
-            .padding(.horizontal, 28).padding(.top, 20).padding(.bottom, 50)
+            .buttonStyle(.plain)
+            .disabled((usePassword ? !(emailValid && passwordValid) : !emailValid) || auth.isLoading)
+            .padding(.horizontal, 28).padding(.top, 20)
+
+            // Toggle between OTP and password
+            Button {
+                withAnimation(.easeInOut(duration: 0.2)) {
+                    usePassword.toggle()
+                    password = ""
+                    auth.errorMessage = nil
+                }
+            } label: {
+                Text(usePassword ? "Send me a code instead" : "Sign in with password instead")
+                    .font(AvaTheme.font(14, weight: .semibold))
+                    .foregroundStyle(AvaTheme.terracotta)
+            }
+            .buttonStyle(.plain).padding(.top, 14).padding(.bottom, 50)
+            .frame(maxWidth: .infinity)
         }
         .onAppear { emailFocused = true }
     }
@@ -205,6 +243,14 @@ struct AuthView: View {
     }
 
     // MARK: - Actions
+
+    private func signInWithPassword() {
+        guard emailValid && passwordValid else { return }
+        _Concurrency.Task {
+            await auth.signInWithPassword(email: email, password: password)
+            if auth.state == .authenticated { await finishAuth() }
+        }
+    }
 
     private func sendCode() {
         guard emailValid else { return }

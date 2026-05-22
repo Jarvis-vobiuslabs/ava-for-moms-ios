@@ -123,6 +123,16 @@ final class AuthManager {
         }
     }
 
+    func signInWithPassword(email: String, password: String) async {
+        isLoading = true; errorMessage = nil
+        defer { isLoading = false }
+        do {
+            try await supabase.auth.signIn(email: email, password: password)
+        } catch {
+            errorMessage = friendlyError(error)
+        }
+    }
+
     func verifyOTP(email: String, token: String) async {
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
