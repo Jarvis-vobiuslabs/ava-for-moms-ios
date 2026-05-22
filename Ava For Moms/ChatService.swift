@@ -86,9 +86,11 @@ final class ChatService {
     private func ensureConversation(userId: UUID) async -> UUID {
         if let existing = activeConversationId { return existing }
 
-        // Try to get today's conversation
+        // Try to get today's conversation using typed decode
+        struct ConvRow: Decodable { let id: UUID }
         let today = Calendar.current.startOfDay(for: Date())
-        let result = try? await supabase
+
+        if let rows = try? await supabase
             .from("conversations")
             .select("id")
             .eq("user_id", value: userId.uuidString)
@@ -96,23 +98,20 @@ final class ChatService {
             .order("created_at", ascending: false)
             .limit(1)
             .execute()
-
-        if let rows = try? result?.value as? [[String: Any]],
-           let first = rows.first,
-           let idStr = first["id"] as? String,
-           let id = UUID(uuidString: idStr) {
-            activeConversationId = id
-            return id
+            .value as [ConvRow],
+           let first = rows.first {
+            activeConversationId = first.id
+            return first.id
         }
 
         // Create new conversation
         let newId = UUID()
         _ = try? await supabase.from("conversations").insert([
-            "id": newId.uuidString,
-            "user_id": userId.uuidString,
-            "title": "Chat",
-            "last_message_at": ISO8601DateFormatter().string(from: Date()),
-        ]).execute()
+            "id": AnyJSON.string(newId.uuidString),
+            "user_id": AnyJSON.string(userId.uuidString),
+            "title": AnyJSON.string("Chat"),
+            "last_message_at": AnyJSON.string(ISO8601DateFormatter().string(from: Date())),
+        ] as [String: AnyJSON], returning: .minimal).execute()
 
         activeConversationId = newId
         return newId
@@ -123,22 +122,21 @@ final class ChatService {
     func loadHistory(userId: UUID) async {
         let conversationId = await ensureConversation(userId: userId)
 
-        guard let result = try? await supabase
+        struct MsgRow: Decodable { let role: String; let content: String }
+
+        guard let rows = try? await supabase
             .from("messages")
             .select("role, content")
             .eq("conversation_id", value: conversationId.uuidString)
             .order("created_at", ascending: true)
             .limit(50)
-            .execute(),
-              let rows = try? result.value as? [[String: Any]]
+            .execute()
+            .value as [MsgRow]
         else { return }
 
         messages = rows.compactMap { row in
-            guard let roleStr = row["role"] as? String,
-                  let content = row["content"] as? String,
-                  let role = MessageRole(rawValue: roleStr)
-            else { return nil }
-            return ChatMessage(role: role, content: content)
+            guard let role = MessageRole(rawValue: row.role) else { return nil }
+            return ChatMessage(role: role, content: row.content)
         }
     }
 
