@@ -132,7 +132,7 @@ struct ChatView: View {
                 .onSubmit { sendMessage() }
 
             Button(action: sendMessage) {
-                Circle().fill(inputText.isEmpty ? AvaTheme.line : AnyShapeStyle(AvaTheme.blushTerracotta))
+                Circle().fill(inputText.isEmpty ? AnyShapeStyle(AvaTheme.line) : AnyShapeStyle(AvaTheme.blushTerracotta))
                     .frame(width: 40, height: 40)
                     .overlay(Image(systemName: inputText.isEmpty ? "mic.fill" : "arrow.up")
                         .font(.system(size: 16, weight: .bold))
