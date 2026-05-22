@@ -30,8 +30,14 @@ final class AuthManager {
 
     var state: AuthState = .loading
     var currentUserId: UUID?
+    var userName: String?
     var isLoading = false
     var errorMessage: String?
+
+    var firstName: String {
+        guard let name = userName, !name.isEmpty else { return "there" }
+        return String(name.split(separator: " ").first ?? Substring(name))
+    }
 
     @ObservationIgnored private let appleHandler = AppleSignInHandler()
     @ObservationIgnored private var pendingNonce: String?
@@ -42,10 +48,19 @@ final class AuthManager {
             guard let self else { return }
             switch event {
             case .initialSession:
-                if let s = session { self.currentUserId = s.user.id; self.state = .authenticated }
-                else               { self.state = .unauthenticated }
+                if let s = session {
+                    self.currentUserId = s.user.id
+                    self.state = .authenticated
+                    await self.loadProfile(userId: s.user.id)
+                } else {
+                    self.state = .unauthenticated
+                }
             case .signedIn:
-                if let s = session { self.currentUserId = s.user.id; self.state = .authenticated }
+                if let s = session {
+                    self.currentUserId = s.user.id
+                    self.state = .authenticated
+                    await self.loadProfile(userId: s.user.id)
+                }
             case .signedOut, .userDeleted:
                 self.currentUserId = nil; self.state = .unauthenticated
             case .tokenRefreshed:
@@ -110,6 +125,19 @@ final class AuthManager {
         defer { isLoading = false }
         do    { try await supabase.auth.signIn(email: email, password: password) }
         catch { errorMessage = friendlyError(error) }
+    }
+
+    func loadProfile(userId: UUID) async {
+        struct Profile: Decodable { let name: String? }
+        if let profile = try? await supabase
+            .from("profiles")
+            .select("name")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value as Profile {
+            userName = profile.name
+        }
     }
 
     func signOut() async {

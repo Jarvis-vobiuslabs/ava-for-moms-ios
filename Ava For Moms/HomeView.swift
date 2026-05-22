@@ -2,8 +2,26 @@ import SwiftUI
 
 struct HomeView: View {
     let onChatTap: () -> Void
+    @Environment(AuthManager.self) private var auth
     @State private var showAccount = false
     @State private var avaSuggestionDismissed = false
+
+    private var greeting: String {
+        let hour = Calendar.current.component(.hour, from: Date())
+        switch hour {
+        case 0..<12: return "Good morning"
+        case 12..<17: return "Good afternoon"
+        default: return "Good evening"
+        }
+    }
+
+    private var todayString: String {
+        Date().formatted(.dateTime.weekday(.wide).month(.wide).day())
+    }
+
+    private var userInitial: String {
+        String(auth.firstName.prefix(1)).uppercased()
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -15,11 +33,11 @@ struct HomeView: View {
                     // ── Header ──────────────────────────────────────────
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Hey Claire 👋")
+                            Text("Hey \(auth.firstName) 👋")
                                 .font(AvaTheme.font(30, weight: .heavy))
                                 .foregroundStyle(AvaTheme.ink)
                                 .tracking(-0.8)
-                            Text("Tuesday, April 22")
+                            Text(todayString)
                                 .font(AvaTheme.font(14, weight: .medium))
                                 .foregroundStyle(AvaTheme.inkMute)
                         }
@@ -29,7 +47,7 @@ struct HomeView: View {
                                 .fill(AvaTheme.blushSage)
                                 .frame(width: 40, height: 40)
                                 .overlay(
-                                    Text("C")
+                                    Text(userInitial)
                                         .font(AvaTheme.font(15, weight: .heavy))
                                         .foregroundStyle(.white)
                                 )
@@ -166,7 +184,7 @@ struct HomeView: View {
             .padding(.bottom, 100)
         }
         .sheet(isPresented: $showAccount) {
-            AccountView()
+            AccountView().environment(auth)
         }
         .animation(.easeInOut(duration: 0.25), value: avaSuggestionDismissed)
     }
