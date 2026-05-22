@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     let onChatTap: () -> Void
     @Environment(AuthManager.self) private var auth
+    @Environment(TaskStore.self) private var taskStore
     @State private var showAccount = false
     @State private var avaSuggestionDismissed = false
 
@@ -58,7 +59,7 @@ struct HomeView: View {
                     .padding(.top, 60)
                     .padding(.bottom, 16)
 
-                    // ── Ava's Take card ──────────────────────────────────
+                    // ── Ava's Take card (dynamic) ────────────────────────
                     if !avaSuggestionDismissed {
                     ZStack(alignment: .topTrailing) {
                         Circle()
@@ -81,7 +82,7 @@ struct HomeView: View {
                                     .foregroundStyle(.white.opacity(0.9))
                                     .tracking(0.3)
                             }
-                            Text("You've got a full morning — Mia's dentist at 10:30 and soccer pickup at 4. Want me to handle dinner prep?")
+                            Text(avaTakeMessage)
                                 .font(AvaTheme.font(17, weight: .semibold))
                                 .foregroundStyle(.white)
                                 .lineSpacing(3)
@@ -114,54 +115,74 @@ struct HomeView: View {
                     } // end if !avaSuggestionDismissed
 
                     // ── Quick tiles ──────────────────────────────────────
+                    let totalTasks = taskStore.urgent.count + taskStore.normal.count + taskStore.done.count
                     HStack(spacing: 10) {
                         quickTile(
                             color: AvaTheme.sage,
                             symbol: "checkmark",
                             label: "TASKS",
-                            bigText: "3",
-                            subText: " / 7",
-                            caption: "checked off"
+                            bigText: "\(taskStore.done.count)",
+                            subText: totalTasks > 0 ? " / \(totalTasks)" : "",
+                            caption: totalTasks == 0 ? "no tasks yet" : "checked off"
                         )
-                        nextUpTile
+                        nextUpTaskTile
                     }
                     .padding(.horizontal, 18)
                     .padding(.top, 10)
 
-                    // ── Today timeline ───────────────────────────────────
-                    VStack(alignment: .leading, spacing: 0) {
-                        HStack {
-                            Text("Today")
-                                .font(AvaTheme.font(17, weight: .heavy))
-                                .foregroundStyle(AvaTheme.ink)
-                            Spacer()
-                            Text("5 things")
-                                .font(AvaTheme.font(12, weight: .bold))
-                                .foregroundStyle(AvaTheme.terracotta)
-                        }
-                        .padding(.bottom, 12)
-
-                        ForEach(todayEvents) { event in
-                            HStack(spacing: 12) {
-                                Text(event.time)
-                                    .font(AvaTheme.font(13, weight: .bold))
-                                    .foregroundStyle(event.done ? AvaTheme.inkSoft : AvaTheme.inkMute)
-                                    .strikethrough(event.done, color: AvaTheme.inkSoft)
-                                    .frame(width: 48, alignment: .leading)
-                                RoundedRectangle(cornerRadius: 2)
-                                    .fill(event.color)
-                                    .frame(width: 4, height: 30)
-                                    .opacity(event.done ? 0.35 : 1)
-                                Text(event.title)
-                                    .font(AvaTheme.font(14.5, weight: .semibold))
-                                    .foregroundStyle(event.done ? AvaTheme.inkSoft : AvaTheme.ink)
-                                    .strikethrough(event.done, color: AvaTheme.inkSoft)
+                    // ── Today's tasks ────────────────────────────────────
+                    let allIncomplete = taskStore.urgent + taskStore.normal
+                    if !allIncomplete.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack {
+                                Text("Today's focus")
+                                    .font(AvaTheme.font(17, weight: .heavy))
+                                    .foregroundStyle(AvaTheme.ink)
+                                Spacer()
+                                Text("\(allIncomplete.count) task\(allIncomplete.count == 1 ? "" : "s")")
+                                    .font(AvaTheme.font(12, weight: .bold))
+                                    .foregroundStyle(AvaTheme.terracotta)
                             }
-                            .padding(.vertical, 10)
+                            .padding(.bottom, 12)
+
+                            ForEach(Array(allIncomplete.prefix(5))) { task in
+                                HStack(spacing: 12) {
+                                    RoundedRectangle(cornerRadius: 2)
+                                        .fill(task.priority == "urgent" ? AvaTheme.terracotta : AvaTheme.sage)
+                                        .frame(width: 4, height: 30)
+                                    Text(task.title)
+                                        .font(AvaTheme.font(14.5, weight: .semibold))
+                                        .foregroundStyle(AvaTheme.ink)
+                                        .lineLimit(1)
+                                    Spacer()
+                                    if task.priority == "urgent" {
+                                        Text("urgent")
+                                            .font(AvaTheme.font(10, weight: .bold))
+                                            .foregroundStyle(AvaTheme.terracotta)
+                                    }
+                                }
+                                .padding(.vertical, 10)
+                            }
+
+                            if allIncomplete.count > 5 {
+                                Text("+ \(allIncomplete.count - 5) more")
+                                    .font(AvaTheme.font(12, weight: .medium))
+                                    .foregroundStyle(AvaTheme.inkSoft)
+                                    .padding(.top, 4)
+                            }
                         }
+                        .padding(.horizontal, 22)
+                        .padding(.top, 22)
+                    } else if totalTasks > 0 {
+                        // All done
+                        HStack(spacing: 10) {
+                            Text("🎉").font(.system(size: 22))
+                            Text("All done for today!")
+                                .font(AvaTheme.font(15, weight: .heavy))
+                                .foregroundStyle(AvaTheme.ink)
+                        }
+                        .padding(.horizontal, 22).padding(.top, 22)
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 22)
 
                     Spacer().frame(height: 130)
                 }
@@ -214,47 +235,47 @@ struct HomeView: View {
         .background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
     }
 
-    private var nextUpTile: some View {
-        VStack(alignment: .leading, spacing: 10) {
+    // Next urgent task tile (or a prompt to add one)
+    private var nextUpTaskTile: some View {
+        let next = taskStore.urgent.first ?? taskStore.normal.first
+        return VStack(alignment: .leading, spacing: 10) {
             HStack(spacing: 8) {
-                Circle().fill(AvaTheme.blush).frame(width: 28, height: 28)
-                    .overlay(Image(systemName: "calendar")
+                Circle().fill(next != nil ? AvaTheme.terracotta : AvaTheme.blush).frame(width: 28, height: 28)
+                    .overlay(Image(systemName: next?.priority == "urgent" ? "exclamationmark" : "checkmark.square")
                         .font(.system(size: 12, weight: .bold)).foregroundStyle(.white))
-                Text("NEXT UP")
-                    .font(AvaTheme.font(11, weight: .bold))
-                    .foregroundStyle(AvaTheme.inkMute)
-                    .tracking(0.2)
+                Text("NEXT UP").font(AvaTheme.font(11, weight: .bold)).foregroundStyle(AvaTheme.inkMute).tracking(0.2)
             }
-            Text("Mia — dentist")
-                .font(AvaTheme.font(18, weight: .heavy))
-                .foregroundStyle(AvaTheme.ink)
-                .lineLimit(2)
-            Text("10:30 · in 2 hrs")
-                .font(AvaTheme.font(11.5, weight: .semibold))
-                .foregroundStyle(AvaTheme.inkMute)
+            if let task = next {
+                Text(task.title).font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(AvaTheme.ink).lineLimit(2)
+                Text(task.priority == "urgent" ? "urgent 🔴" : "on your list")
+                    .font(AvaTheme.font(11.5, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
+            } else {
+                Text("All clear!").font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                Text("Nothing pending").font(AvaTheme.font(11.5, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
+            }
         }
-        .padding(16)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
         .background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
     }
 
-    // ── Data ────────────────────────────────────────────────────────────
+    // Dynamic Ava's Take — no API call, computed from real state
+    private var avaTakeMessage: String {
+        let urgentCount = taskStore.urgent.count
+        let totalCount = taskStore.urgent.count + taskStore.normal.count
+        let hour = Calendar.current.component(.hour, from: Date())
 
-    private struct TodayEvent: Identifiable {
-        let id = UUID()
-        let time: String
-        let title: String
-        let color: Color
-        let done: Bool
+        if urgentCount > 0 {
+            return "You've got \(urgentCount) urgent \(urgentCount == 1 ? "thing" : "things") on your list today. Want me to help you tackle them?"
+        } else if totalCount > 3 {
+            return "You have \(totalCount) things on your list. I can help you figure out what to handle first."
+        } else if totalCount > 0 {
+            return "Looks like a manageable day — \(totalCount) \(totalCount == 1 ? "task" : "tasks") on your list. You've got this 💛"
+        } else if hour < 10 {
+            return "Good morning! Your list is clear. Want me to help you plan today?"
+        } else {
+            return "Your list is empty. Tell me what's on your mind and I'll help you get it done."
+        }
     }
-
-    private let todayEvents: [TodayEvent] = [
-        TodayEvent(time: "8:00",  title: "School drop · Theo",  color: Color(hex: "A5C09A"), done: true),
-        TodayEvent(time: "10:30", title: "Mia · Dentist",        color: Color(hex: "D46A47"), done: false),
-        TodayEvent(time: "2:00",  title: "Grocery pickup",       color: Color(hex: "7A9A6E"), done: false),
-        TodayEvent(time: "4:00",  title: "Theo · Soccer",        color: Color(hex: "E88D74"), done: false),
-        TodayEvent(time: "6:30",  title: "Family dinner",        color: Color(hex: "B04A2A"), done: false),
-    ]
 }
 
 #Preview {

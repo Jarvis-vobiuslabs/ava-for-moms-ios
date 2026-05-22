@@ -12,6 +12,8 @@ struct AccountView: View {
     @State private var showTerms = false
     @State private var showPrivacy = false
     @State private var showMemories = false
+    @State private var showEditProfile = false
+    @State private var showFamily = false
     @State private var deleteError: String?
 
     var body: some View {
@@ -37,6 +39,14 @@ struct AccountView: View {
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 24).padding(.top, 60).padding(.bottom, 24)
+
+                    // ── Profile ────────────────────────────────────────────
+                    sectionHeader("PROFILE")
+                    settingsCard {
+                        row(icon: "person.circle", title: "Edit Profile") { showEditProfile = true }
+                        Divider().padding(.leading, 54).tint(AvaTheme.line)
+                        row(icon: "figure.2.and.child.holdinghands", title: "Family Members") { showFamily = true }
+                    }
 
                     // ── Ava ───────────────────────────────────────────────
                     sectionHeader("AVA")
@@ -145,9 +155,11 @@ struct AccountView: View {
         } message: {
             Text("This cannot be undone.")
         }
-        .sheet(isPresented: $showTerms)    { LegalView(type: .terms) }
-        .sheet(isPresented: $showPrivacy)  { LegalView(type: .privacy) }
-        .sheet(isPresented: $showMemories) { MemoriesView() }
+        .sheet(isPresented: $showTerms)       { LegalView(type: .terms) }
+        .sheet(isPresented: $showPrivacy)     { LegalView(type: .privacy) }
+        .sheet(isPresented: $showMemories)    { MemoriesView().environment(auth) }
+        .sheet(isPresented: $showEditProfile) { ProfileEditView().environment(auth) }
+        .sheet(isPresented: $showFamily)      { FamilyManagementView().environment(auth) }
         .overlay {
             if isDeleting {
                 ZStack {
