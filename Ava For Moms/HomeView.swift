@@ -4,6 +4,7 @@ struct HomeView: View {
     let onChatTap: () -> Void
     @Environment(AuthManager.self) private var auth
     @Environment(TaskStore.self) private var taskStore
+    @Environment(CalendarStore.self) private var calendarStore
     @State private var showAccount = false
     @State private var avaSuggestionDismissed = false
 
@@ -22,6 +23,16 @@ struct HomeView: View {
 
     private var userInitial: String {
         String(auth.firstName.prefix(1)).uppercased()
+    }
+
+    private var todayEvents: [AvaCalendarEvent] {
+        calendarStore.events(on: Date())
+            .sorted { $0.startsAt < $1.startsAt }
+    }
+
+    private var upcomingEvents: [AvaCalendarEvent] {
+        let now = Date()
+        return todayEvents.filter { $0.startsAt >= now }
     }
 
     var body: some View {
@@ -59,60 +70,60 @@ struct HomeView: View {
                     .padding(.top, 60)
                     .padding(.bottom, 16)
 
-                    // ── Ava's Take card (dynamic) ────────────────────────
+                    // ── Ava's Take card ──────────────────────────────────
                     if !avaSuggestionDismissed {
-                    ZStack(alignment: .topTrailing) {
-                        Circle()
-                            .fill(.white.opacity(0.12))
-                            .frame(width: 140, height: 140)
-                            .offset(x: 20, y: -30)
-                        Circle()
-                            .fill(.white.opacity(0.08))
-                            .frame(width: 90, height: 90)
-                            .offset(x: -10, y: 70)
+                        ZStack(alignment: .topTrailing) {
+                            Circle()
+                                .fill(.white.opacity(0.12))
+                                .frame(width: 140, height: 140)
+                                .offset(x: 20, y: -30)
+                            Circle()
+                                .fill(.white.opacity(0.08))
+                                .frame(width: 90, height: 90)
+                                .offset(x: -10, y: 70)
 
-                        VStack(alignment: .leading, spacing: 10) {
-                            HStack(spacing: 8) {
-                                ZStack {
-                                    Circle().fill(.white.opacity(0.25)).frame(width: 24, height: 24)
-                                    Circle().fill(.white).frame(width: 10, height: 10)
+                            VStack(alignment: .leading, spacing: 10) {
+                                HStack(spacing: 8) {
+                                    ZStack {
+                                        Circle().fill(.white.opacity(0.25)).frame(width: 24, height: 24)
+                                        Circle().fill(.white).frame(width: 10, height: 10)
+                                    }
+                                    Text("AVA'S TAKE")
+                                        .font(AvaTheme.font(12, weight: .bold))
+                                        .foregroundStyle(.white.opacity(0.9))
+                                        .tracking(0.3)
                                 }
-                                Text("AVA'S TAKE")
-                                    .font(AvaTheme.font(12, weight: .bold))
-                                    .foregroundStyle(.white.opacity(0.9))
-                                    .tracking(0.3)
+                                Text(avaTakeMessage)
+                                    .font(AvaTheme.font(17, weight: .semibold))
+                                    .foregroundStyle(.white)
+                                    .lineSpacing(3)
+                                HStack(spacing: 8) {
+                                    Button(action: onChatTap) {
+                                        Text("Yes please")
+                                            .font(AvaTheme.font(13, weight: .bold))
+                                            .foregroundStyle(AvaTheme.terracottaDeep)
+                                            .padding(.horizontal, 16).padding(.vertical, 9)
+                                            .background(.white)
+                                            .clipShape(Capsule())
+                                    }
+                                    .buttonStyle(.plain)
+                                    Button { avaSuggestionDismissed = true } label: {
+                                        Text("Later")
+                                            .font(AvaTheme.font(13, weight: .semibold))
+                                            .foregroundStyle(.white)
+                                            .padding(.horizontal, 16).padding(.vertical, 9)
+                                            .overlay(Capsule().stroke(.white.opacity(0.6), lineWidth: 1.5))
+                                    }
+                                    .buttonStyle(.plain)
+                                }
                             }
-                            Text(avaTakeMessage)
-                                .font(AvaTheme.font(17, weight: .semibold))
-                                .foregroundStyle(.white)
-                                .lineSpacing(3)
-                            HStack(spacing: 8) {
-                                Button(action: onChatTap) {
-                                    Text("Yes please")
-                                        .font(AvaTheme.font(13, weight: .bold))
-                                        .foregroundStyle(AvaTheme.terracottaDeep)
-                                        .padding(.horizontal, 16).padding(.vertical, 9)
-                                        .background(.white)
-                                        .clipShape(Capsule())
-                                }
-                                .buttonStyle(.plain)
-                                Button { avaSuggestionDismissed = true } label: {
-                                    Text("Later")
-                                        .font(AvaTheme.font(13, weight: .semibold))
-                                        .foregroundStyle(.white)
-                                        .padding(.horizontal, 16).padding(.vertical, 9)
-                                        .overlay(Capsule().stroke(.white.opacity(0.6), lineWidth: 1.5))
-                                }
-                                .buttonStyle(.plain)
-                            }
+                            .padding(22)
                         }
-                        .padding(22)
+                        .background(AvaTheme.blushTerracotta)
+                        .clipShape(RoundedRectangle(cornerRadius: 28))
+                        .padding(.horizontal, 18)
+                        .transition(.opacity.combined(with: .move(edge: .top)))
                     }
-                    .background(AvaTheme.blushTerracotta)
-                    .clipShape(RoundedRectangle(cornerRadius: 28))
-                    .padding(.horizontal, 18)
-                    .transition(.opacity.combined(with: .move(edge: .top)))
-                    } // end if !avaSuggestionDismissed
 
                     // ── Quick tiles ──────────────────────────────────────
                     let totalTasks = taskStore.urgent.count + taskStore.normal.count + taskStore.done.count
@@ -125,10 +136,65 @@ struct HomeView: View {
                             subText: totalTasks > 0 ? " / \(totalTasks)" : "",
                             caption: totalTasks == 0 ? "no tasks yet" : "checked off"
                         )
-                        nextUpTaskTile
+                        quickTile(
+                            color: AvaTheme.terracotta,
+                            symbol: "calendar",
+                            label: "TODAY",
+                            bigText: "\(todayEvents.count)",
+                            subText: "",
+                            caption: todayEvents.count == 1 ? "event" : "events"
+                        )
                     }
                     .padding(.horizontal, 18)
                     .padding(.top, 10)
+
+                    // ── Today's events ───────────────────────────────────
+                    if !todayEvents.isEmpty {
+                        VStack(alignment: .leading, spacing: 0) {
+                            HStack {
+                                Text("Today's schedule")
+                                    .font(AvaTheme.font(17, weight: .heavy))
+                                    .foregroundStyle(AvaTheme.ink)
+                                Spacer()
+                                Text("\(todayEvents.count) event\(todayEvents.count == 1 ? "" : "s")")
+                                    .font(AvaTheme.font(12, weight: .bold))
+                                    .foregroundStyle(AvaTheme.terracotta)
+                            }
+                            .padding(.bottom, 12)
+
+                            ForEach(Array(todayEvents.prefix(4))) { event in
+                                HStack(spacing: 12) {
+                                    Rectangle()
+                                        .fill(event.color)
+                                        .frame(width: 4)
+                                        .clipShape(Capsule())
+                                    VStack(alignment: .leading, spacing: 2) {
+                                        Text(event.title)
+                                            .font(AvaTheme.font(14.5, weight: .heavy))
+                                            .foregroundStyle(AvaTheme.ink)
+                                            .lineLimit(1)
+                                        Text(event.timeString)
+                                            .font(AvaTheme.font(12, weight: .medium))
+                                            .foregroundStyle(AvaTheme.inkMute)
+                                    }
+                                    Spacer()
+                                    Image(systemName: event.source == .eventKit ? "calendar" : "face.smiling")
+                                        .font(.system(size: 11))
+                                        .foregroundStyle(AvaTheme.inkSoft)
+                                }
+                                .padding(.vertical, 10)
+                            }
+
+                            if todayEvents.count > 4 {
+                                Text("+ \(todayEvents.count - 4) more")
+                                    .font(AvaTheme.font(12, weight: .medium))
+                                    .foregroundStyle(AvaTheme.inkSoft)
+                                    .padding(.top, 4)
+                            }
+                        }
+                        .padding(.horizontal, 22)
+                        .padding(.top, 22)
+                    }
 
                     // ── Today's tasks ────────────────────────────────────
                     let allIncomplete = taskStore.urgent + taskStore.normal
@@ -174,7 +240,6 @@ struct HomeView: View {
                         .padding(.horizontal, 22)
                         .padding(.top, 22)
                     } else if totalTasks > 0 {
-                        // All done
                         HStack(spacing: 10) {
                             Text("🎉").font(.system(size: 22))
                             Text("All done for today!")
@@ -235,37 +300,19 @@ struct HomeView: View {
         .background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
     }
 
-    // Next urgent task tile (or a prompt to add one)
-    private var nextUpTaskTile: some View {
-        let next = taskStore.urgent.first ?? taskStore.normal.first
-        return VStack(alignment: .leading, spacing: 10) {
-            HStack(spacing: 8) {
-                Circle().fill(next != nil ? AvaTheme.terracotta : AvaTheme.blush).frame(width: 28, height: 28)
-                    .overlay(Image(systemName: next?.priority == "urgent" ? "exclamationmark" : "checkmark.square")
-                        .font(.system(size: 12, weight: .bold)).foregroundStyle(.white))
-                Text("NEXT UP").font(AvaTheme.font(11, weight: .bold)).foregroundStyle(AvaTheme.inkMute).tracking(0.2)
-            }
-            if let task = next {
-                Text(task.title).font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(AvaTheme.ink).lineLimit(2)
-                Text(task.priority == "urgent" ? "urgent 🔴" : "on your list")
-                    .font(AvaTheme.font(11.5, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
-            } else {
-                Text("All clear!").font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(AvaTheme.ink)
-                Text("Nothing pending").font(AvaTheme.font(11.5, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
-            }
-        }
-        .padding(16).frame(maxWidth: .infinity, alignment: .leading)
-        .background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
-    }
-
-    // Dynamic Ava's Take — no API call, computed from real state
     private var avaTakeMessage: String {
         let urgentCount = taskStore.urgent.count
         let totalCount = taskStore.urgent.count + taskStore.normal.count
+        let eventCount = upcomingEvents.count
         let hour = Calendar.current.component(.hour, from: Date())
 
-        if urgentCount > 0 {
+        if urgentCount > 0 && eventCount > 0 {
+            return "You've got \(urgentCount) urgent \(urgentCount == 1 ? "task" : "tasks") and \(eventCount) \(eventCount == 1 ? "event" : "events") still today. Want help prioritising?"
+        } else if urgentCount > 0 {
             return "You've got \(urgentCount) urgent \(urgentCount == 1 ? "thing" : "things") on your list today. Want me to help you tackle them?"
+        } else if eventCount > 0 {
+            let next = upcomingEvents[0]
+            return "You've got \(eventCount) \(eventCount == 1 ? "event" : "events") coming up today — next is \(next.title) at \(next.timeString). Want help getting ready?"
         } else if totalCount > 3 {
             return "You have \(totalCount) things on your list. I can help you figure out what to handle first."
         } else if totalCount > 0 {
