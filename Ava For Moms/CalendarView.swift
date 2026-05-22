@@ -2,11 +2,20 @@ import SwiftUI
 
 struct CalendarView: View {
     let onChatTap: () -> Void
-    @State private var selectedDay = 22
+    @Environment(AuthManager.self) private var auth
+    @Environment(CalendarStore.self) private var store
+
+    @State private var selectedDate = Date()
+    @State private var weekStart = Date().startOfWeek
     @State private var showAddEvent = false
 
-    private let weekDays = ["M","T","W","T","F","S","S"]
-    private let weekNums = [21,22,23,24,25,26,27]
+    private var weekDays: [Date] {
+        (0..<7).compactMap { Calendar.current.date(byAdding: .day, value: $0, to: weekStart) }
+    }
+
+    private var selectedEvents: [AvaCalendarEvent] {
+        store.events(on: selectedDate)
+    }
 
     var body: some View {
         ZStack(alignment: .bottomTrailing) {
@@ -18,135 +27,128 @@ struct CalendarView: View {
                     // ── Header ────────────────────────────────────────────
                     HStack(alignment: .center) {
                         VStack(alignment: .leading, spacing: 2) {
-                            Text("April 2026")
-                                .font(AvaTheme.font(13, weight: .bold))
-                                .foregroundStyle(AvaTheme.inkMute)
+                            Text(selectedDate.formatted(.dateTime.month(.wide).year()))
+                                .font(AvaTheme.font(13, weight: .bold)).foregroundStyle(AvaTheme.inkMute)
                             Text("This week")
-                                .font(AvaTheme.font(28, weight: .heavy))
-                                .foregroundStyle(AvaTheme.ink)
-                                .tracking(-0.6)
+                                .font(AvaTheme.font(28, weight: .heavy)).foregroundStyle(AvaTheme.ink).tracking(-0.6)
                         }
                         Spacer()
                         Button { showAddEvent = true } label: {
-                            Circle()
-                                .fill(AvaTheme.blushTerracotta)
-                                .frame(width: 44, height: 44)
-                                .overlay(
-                                    Image(systemName: "plus")
-                                        .font(.system(size: 18, weight: .bold))
-                                        .foregroundStyle(.white)
-                                )
+                            Circle().fill(AvaTheme.blushTerracotta).frame(width: 44, height: 44)
+                                .overlay(Image(systemName: "plus")
+                                    .font(.system(size: 18, weight: .bold)).foregroundStyle(.white))
                                 .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 8, x: 0, y: 4)
                         }
                         .buttonStyle(.plain)
                     }
-                    .padding(.horizontal, 22)
-                    .padding(.top, 60)
-                    .padding(.bottom, 18)
+                    .padding(.horizontal, 22).padding(.top, 60).padding(.bottom, 18)
 
-                    // ── Week pill strip ───────────────────────────────────
+                    // ── Week navigation ───────────────────────────────────
                     HStack(spacing: 4) {
-                        ForEach(0..<7) { i in
-                            Button { selectedDay = weekNums[i] } label: {
+                        // Prev week
+                        Button {
+                            weekStart = Calendar.current.date(byAdding: .day, value: -7, to: weekStart) ?? weekStart
+                            selectedDate = weekStart
+                            loadEvents()
+                        } label: {
+                            Image(systemName: "chevron.left")
+                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
+                                .frame(width: 32, height: 44)
+                        }
+                        .buttonStyle(.plain)
+
+                        // Day pills
+                        ForEach(weekDays, id: \.self) { day in
+                            Button { selectedDate = day } label: {
                                 VStack(spacing: 2) {
-                                    Text(weekDays[i])
-                                        .font(AvaTheme.font(10, weight: .bold))
-                                        .opacity(0.8)
-                                    Text("\(weekNums[i])")
+                                    Text(day.formatted(.dateTime.weekday(.narrow)))
+                                        .font(AvaTheme.font(10, weight: .bold)).opacity(0.8)
+                                    Text(day.formatted(.dateTime.day()))
                                         .font(AvaTheme.font(16, weight: .heavy))
                                 }
-                                .frame(maxWidth: .infinity)
-                                .padding(.vertical, 8)
-                                .foregroundStyle(selectedDay == weekNums[i] ? .white : AvaTheme.ink)
+                                .frame(maxWidth: .infinity).padding(.vertical, 8)
+                                .foregroundStyle(isSelected(day) ? .white : AvaTheme.ink)
                                 .background(
                                     RoundedRectangle(cornerRadius: 16)
-                                        .fill(selectedDay == weekNums[i] ? AvaTheme.terracotta : Color.clear)
+                                        .fill(isSelected(day) ? AvaTheme.terracotta : Color.clear)
                                 )
                             }
                             .buttonStyle(.plain)
                         }
-                    }
-                    .padding(6)
-                    .background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
-                    .padding(.horizontal, 22)
 
-                    // ── People legend ─────────────────────────────────────
-                    HStack(spacing: 6) {
-                        ForEach(familyMembers, id: \.name) { p in
-                            HStack(spacing: 6) {
-                                Circle().fill(p.color).frame(width: 8, height: 8)
-                                Text(p.name)
-                                    .font(AvaTheme.font(11.5, weight: .bold))
-                                    .foregroundStyle(AvaTheme.ink)
-                            }
-                            .padding(.horizontal, 10).padding(.vertical, 5)
-                            .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+                        // Next week
+                        Button {
+                            weekStart = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
+                            selectedDate = weekStart
+                            loadEvents()
+                        } label: {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
+                                .frame(width: 32, height: 44)
                         }
+                        .buttonStyle(.plain)
                     }
+                    .padding(6).background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
                     .padding(.horizontal, 22)
-                    .padding(.top, 14)
 
-                    // ── Events ────────────────────────────────────────────
-                    VStack(spacing: 10) {
-                        ForEach(calEvents) { event in
+                    // ── Calendar access prompt ────────────────────────────
+                    if !store.calendarAccessGranted {
+                        Button {
+                            _Concurrency.Task {
+                                await store.requestAccess()
+                                loadEvents()
+                            }
+                        } label: {
                             HStack(spacing: 12) {
-                                Text(event.time)
-                                    .font(AvaTheme.font(12, weight: .bold))
-                                    .foregroundStyle(AvaTheme.inkMute)
-                                    .frame(width: 66, alignment: .leading)
-                                    .padding(.top, 14)
-
-                                VStack(alignment: .leading, spacing: 3) {
-                                    Text(event.title)
-                                        .font(AvaTheme.font(15, weight: .heavy))
-                                        .foregroundStyle(AvaTheme.ink)
-                                        .strikethrough(event.done, color: AvaTheme.inkSoft)
-                                    Text(event.detail)
-                                        .font(AvaTheme.font(12, weight: .semibold))
-                                        .foregroundStyle(AvaTheme.inkMute)
+                                Image(systemName: "calendar.badge.plus")
+                                    .font(.system(size: 18)).foregroundStyle(AvaTheme.terracotta)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text("Connect your calendar")
+                                        .font(AvaTheme.font(14, weight: .bold)).foregroundStyle(AvaTheme.ink)
+                                    Text("Ava can see your existing events and help you plan")
+                                        .font(AvaTheme.font(12, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
                                 }
-                                .padding(.horizontal, 16)
-                                .padding(.vertical, 14)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .background(AvaTheme.cream)
-                                .clipShape(RoundedRectangle(cornerRadius: 18))
-                                .overlay(
-                                    RoundedRectangle(cornerRadius: 18)
-                                        .fill(event.color)
-                                        .frame(width: 5)
-                                        .frame(maxWidth: .infinity, alignment: .leading)
-                                        .clipShape(
-                                            UnevenRoundedRectangle(
-                                                topLeadingRadius: 18,
-                                                bottomLeadingRadius: 18,
-                                                bottomTrailingRadius: 0,
-                                                topTrailingRadius: 0
-                                            )
-                                        )
-                                )
-                                .opacity(event.done ? 0.5 : 1)
+                                Spacer()
+                                Image(systemName: "chevron.right")
+                                    .font(.system(size: 12)).foregroundStyle(AvaTheme.inkSoft)
                             }
+                            .padding(16)
+                            .background(RoundedRectangle(cornerRadius: 18).fill(AvaTheme.cream))
                         }
+                        .buttonStyle(.plain).padding(.horizontal, 22).padding(.top, 16)
+                    }
 
-                        // Ava nudge
-                        HStack(spacing: 10) {
-                            Circle()
-                                .fill(AvaTheme.blushTerracotta)
-                                .frame(width: 28, height: 28)
-                            VStack(alignment: .leading, spacing: 2) {
-                                Text("**Heads up —** if Mia's dentist runs long, you'll be tight for grocery pickup. Want me to move pickup to 3?")
-                                    .font(AvaTheme.font(13, weight: .medium))
-                                    .foregroundStyle(AvaTheme.ink)
+                    // ── Events for selected day ───────────────────────────
+                    VStack(alignment: .leading, spacing: 10) {
+                        HStack {
+                            Text(selectedDate.formatted(.dateTime.weekday(.wide).month(.wide).day()))
+                                .font(AvaTheme.font(15, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                            Spacer()
+                            if !selectedEvents.isEmpty {
+                                Text("\(selectedEvents.count) event\(selectedEvents.count == 1 ? "" : "s")")
+                                    .font(AvaTheme.font(12, weight: .bold)).foregroundStyle(AvaTheme.terracotta)
                             }
                         }
-                        .padding(14)
-                        .background(
-                            RoundedRectangle(cornerRadius: 18)
-                                .fill(AvaTheme.blush.opacity(0.2))
-                        )
+                        .padding(.top, 20)
+
+                        if store.isLoading {
+                            HStack { Spacer(); ProgressView().tint(AvaTheme.terracotta); Spacer() }
+                                .padding(.vertical, 30)
+                        } else if selectedEvents.isEmpty {
+                            VStack(spacing: 8) {
+                                Text("No events").font(AvaTheme.font(15, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                                Text("Tap + to add one or ask Ava to schedule something")
+                                    .font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
+                                    .multilineTextAlignment(.center)
+                            }
+                            .frame(maxWidth: .infinity).padding(.vertical, 30)
+                        } else {
+                            ForEach(selectedEvents) { event in
+                                eventRow(event)
+                            }
+                        }
                     }
                     .padding(.horizontal, 22)
-                    .padding(.top, 14)
 
                     Spacer().frame(height: 130)
                 }
@@ -154,55 +156,93 @@ struct CalendarView: View {
 
             // Ava FAB
             Button(action: onChatTap) {
-                Circle()
-                    .fill(AvaTheme.blushTerracotta)
-                    .frame(width: 56, height: 56)
-                    .overlay(
-                        Image(systemName: "face.smiling")
-                            .font(.system(size: 22, weight: .bold))
-                            .foregroundStyle(.white)
-                    )
+                Circle().fill(AvaTheme.blushTerracotta).frame(width: 56, height: 56)
+                    .overlay(Image(systemName: "face.smiling")
+                        .font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
                     .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 12, x: 0, y: 8)
             }
-            .buttonStyle(.plain)
-            .padding(.trailing, 18)
-            .padding(.bottom, 100)
+            .buttonStyle(.plain).padding(.trailing, 18).padding(.bottom, 100)
         }
-        .sheet(isPresented: $showAddEvent) { AddEventView(onDismiss: { showAddEvent = false }) }
+        .sheet(isPresented: $showAddEvent) {
+            AddEventView(
+                initialDate: selectedDate,
+                onSave: { title, detail, start, end, addNative in
+                    guard let userId = auth.currentUserId else { return }
+                    _Concurrency.Task {
+                        await store.createEvent(
+                            title: title, detail: detail, startsAt: start, endsAt: end,
+                            addToNativeCalendar: addNative, userId: userId
+                        )
+                    }
+                },
+                onDismiss: { showAddEvent = false }
+            )
+        }
+        .task {
+            await store.requestAccess()
+            loadEvents()
+        }
     }
 
-    // ── Data ────────────────────────────────────────────────────────────
+    // MARK: - Helpers
 
-    private struct FamilyMember {
-        let name: String
-        let color: Color
+    private func loadEvents() {
+        guard let userId = auth.currentUserId else { return }
+        _Concurrency.Task { await store.load(userId: userId, weekStart: weekStart) }
     }
 
-    private let familyMembers: [FamilyMember] = [
-        FamilyMember(name: "Me",   color: Color(hex: "D46A47")),
-        FamilyMember(name: "Mia",  color: Color(hex: "E88D74")),
-        FamilyMember(name: "Theo", color: Color(hex: "A5C09A")),
-        FamilyMember(name: "Dan",  color: Color(hex: "B6A092")),
-    ]
-
-    private struct CalEvent: Identifiable {
-        let id = UUID()
-        let time: String
-        let title: String
-        let detail: String
-        let color: Color
-        let done: Bool
+    private func isSelected(_ date: Date) -> Bool {
+        Calendar.current.isDate(date, inSameDayAs: selectedDate)
     }
 
-    private let calEvents: [CalEvent] = [
-        CalEvent(time: "8:00 AM",  title: "School drop · Theo",   detail: "with Dan",               color: Color(hex: "A5C09A"), done: true),
-        CalEvent(time: "10:30 AM", title: "Mia · Dentist",        detail: "Dr. Chen · Valencia",    color: Color(hex: "E88D74"), done: false),
-        CalEvent(time: "2:00 PM",  title: "Grocery pickup",       detail: "14 items · Bi-Rite",     color: Color(hex: "D46A47"), done: false),
-        CalEvent(time: "4:00 PM",  title: "Theo's soccer",        detail: "Mission Park · field 3", color: Color(hex: "A5C09A"), done: false),
-        CalEvent(time: "6:30 PM",  title: "Family dinner",        detail: "Sheet-pan lemon chicken",color: Color(hex: "B04A2A"), done: false),
-    ]
+    private func isToday(_ date: Date) -> Bool {
+        Calendar.current.isDateInToday(date)
+    }
+
+    private func eventRow(_ event: AvaCalendarEvent) -> some View {
+        HStack(spacing: 14) {
+            // Time
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(event.timeString)
+                    .font(AvaTheme.font(12, weight: .bold)).foregroundStyle(AvaTheme.inkMute)
+                if event.source == .eventKit {
+                    Image(systemName: "calendar").font(.system(size: 9)).foregroundStyle(AvaTheme.inkSoft)
+                } else {
+                    Image(systemName: "face.smiling").font(.system(size: 9)).foregroundStyle(AvaTheme.terracotta)
+                }
+            }
+            .frame(width: 52, alignment: .trailing)
+
+            // Colour bar + content
+            HStack(spacing: 0) {
+                Rectangle().fill(event.color).frame(width: 4)
+                    .clipShape(UnevenRoundedRectangle(topLeadingRadius: 4, bottomLeadingRadius: 4,
+                                                      bottomTrailingRadius: 0, topTrailingRadius: 0))
+
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(event.title)
+                        .font(AvaTheme.font(14.5, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                    if let detail = event.detail, !detail.isEmpty {
+                        Text(detail)
+                            .font(AvaTheme.font(12, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
+                    }
+                }
+                .padding(.horizontal, 14).padding(.vertical, 12)
+                Spacer()
+            }
+            .background(RoundedRectangle(cornerRadius: 16).fill(AvaTheme.cream))
+        }
+        .swipeActions(edge: .trailing) {
+            if event.source == .ava {
+                Button(role: .destructive) {
+                    guard let userId = auth.currentUserId else { return }
+                    _Concurrency.Task { await store.delete(event, userId: userId) }
+                } label: { Label("Delete", systemImage: "trash") }
+            }
+        }
+    }
 }
 
 #Preview {
-    CalendarView(onChatTap: {})
+    CalendarView(onChatTap: {}).environment(AuthManager()).environment(CalendarStore())
 }

@@ -2,8 +2,9 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab: AvaTab = .home
-    @State private var taskStore    = TaskStore()
-    @State private var groceryStore = GroceryStore()
+    @State private var taskStore     = TaskStore()
+    @State private var groceryStore  = GroceryStore()
+    @State private var calendarStore = CalendarStore()
     @Environment(SubscriptionManager.self) private var store
 
     var body: some View {
@@ -12,6 +13,7 @@ struct MainTabView: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .environment(taskStore)
                 .environment(groceryStore)
+                .environment(calendarStore)
 
             AvaTabBar(selected: $selectedTab)
                 .padding(.bottom, 20)

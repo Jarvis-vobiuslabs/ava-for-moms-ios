@@ -6,5 +6,9 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
+	<key>NSCalendarsFullAccessUsageDescription</key>
+	<string>Ava reads your calendar to build your daily brief and help you schedule events.</string>
+	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
+	<string>Ava adds events to your calendar when you ask her to.</string>
 </dict>
 </plist>
