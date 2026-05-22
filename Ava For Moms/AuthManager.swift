@@ -111,20 +111,30 @@ final class AuthManager {
         }
     }
 
-    // MARK: - Email auth
+    // MARK: - Email OTP (magic code — no password needed)
 
-    func signUp(email: String, password: String) async {
+    func sendOTP(email: String) async {
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
-        do    { try await supabase.auth.signUp(email: email, password: password) }
-        catch { errorMessage = friendlyError(error) }
+        do {
+            try await supabase.auth.signInWithOTP(email: email)
+        } catch {
+            errorMessage = friendlyError(error)
+        }
     }
 
-    func signIn(email: String, password: String) async {
+    func verifyOTP(email: String, token: String) async {
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
-        do    { try await supabase.auth.signIn(email: email, password: password) }
-        catch { errorMessage = friendlyError(error) }
+        do {
+            try await supabase.auth.verifyOTP(
+                email: email,
+                token: token,
+                type: .email
+            )
+        } catch {
+            errorMessage = friendlyError(error)
+        }
     }
 
     func loadProfile(userId: UUID) async {

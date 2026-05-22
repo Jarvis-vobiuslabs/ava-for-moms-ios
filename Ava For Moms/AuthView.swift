@@ -6,24 +6,28 @@ struct AuthView: View {
     var onboardingData: OnboardingData?
     var onComplete: () -> Void
 
-    enum Mode { case signUp, signIn }
-    @State private var mode: Mode
+    // Three steps: email entry → OTP entry (email flow) or direct (Apple)
+    enum Step { case email, otp }
+    @State private var step: Step = .email
     @State private var email = ""
-    @State private var password = ""
-    @FocusState private var focused: Field?
-    enum Field { case email, password }
+    @State private var otp = ""
+    @State private var otpSent = false
+    @FocusState private var emailFocused: Bool
+    @FocusState private var otpFocused: Bool
 
     init(onboardingData: OnboardingData?, onComplete: @escaping () -> Void) {
         self.onboardingData = onboardingData
         self.onComplete = onComplete
-        _mode = State(initialValue: onboardingData != nil ? .signUp : .signIn)
     }
 
-    private var canSubmit: Bool { !email.isEmpty && password.count >= 6 && !auth.isLoading }
+    private var isNewUser: Bool { onboardingData != nil }
+    private var emailValid: Bool { email.contains("@") && email.contains(".") }
+    private var otpValid: Bool { otp.count == 6 }
 
     var body: some View {
         ZStack {
             AvaTheme.bg.ignoresSafeArea()
+
             GeometryReader { geo in
                 Circle().fill(AvaTheme.blush.opacity(0.2)).frame(width: 200)
                     .offset(x: geo.size.width - 60, y: -40)
@@ -31,93 +35,192 @@ struct AuthView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
+
+                    // ── Header ─────────────────────────────────────────────
                     VStack(alignment: .leading, spacing: 10) {
-                        Text(mode == .signUp ? "Create your account" : "Welcome back")
+                        if step == .otp {
+                            Button { withAnimation { step = .email; otp = "" } } label: {
+                                HStack(spacing: 6) {
+                                    Image(systemName: "chevron.left")
+                                        .font(.system(size: 13, weight: .semibold))
+                                    Text("Back")
+                                        .font(AvaTheme.font(15, weight: .semibold))
+                                }
+                                .foregroundStyle(AvaTheme.inkMute)
+                            }
+                            .buttonStyle(.plain)
+                            .padding(.bottom, 8)
+                        }
+
+                        Text(step == .email
+                             ? (isNewUser ? "Create your account" : "Welcome back")
+                             : "Check your email")
                             .font(AvaTheme.font(30, weight: .heavy))
                             .foregroundStyle(AvaTheme.ink).tracking(-0.8)
-                        Text(mode == .signUp ? "Takes 10 seconds." : "Sign in to continue.")
+
+                        Text(step == .email
+                             ? "Enter your email — we'll send you a code."
+                             : "We sent a 6-digit code to\n\(email)")
                             .font(AvaTheme.font(16, weight: .medium))
-                            .foregroundStyle(AvaTheme.inkMute)
+                            .foregroundStyle(AvaTheme.inkMute).lineSpacing(3)
                     }
                     .padding(.horizontal, 28).padding(.top, 60).padding(.bottom, 32)
 
-                    // Apple Sign In
-                    Button {
-                        _Concurrency.Task { await auth.signInWithApple(); if auth.state == .authenticated { await finishAuth() } }
-                    } label: {
-                        HStack(spacing: 10) {
-                            Image(systemName: "apple.logo").font(.system(size: 18, weight: .semibold))
-                            Text(mode == .signUp ? "Continue with Apple" : "Sign in with Apple")
-                                .font(AvaTheme.font(16, weight: .bold))
-                        }
-                        .foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
-                        .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.ink))
+                    if step == .email {
+                        emailStep
+                    } else {
+                        otpStep
                     }
-                    .buttonStyle(.plain).padding(.horizontal, 28)
-
-                    HStack(spacing: 12) {
-                        Rectangle().fill(AvaTheme.line).frame(height: 1)
-                        Text("or").font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.inkSoft)
-                        Rectangle().fill(AvaTheme.line).frame(height: 1)
-                    }
-                    .padding(.horizontal, 28).padding(.vertical, 20)
-
-                    // Email + password
-                    VStack(spacing: 12) {
-                        inputField("envelope", placeholder: "Email address", text: $email,
-                                   field: .email, secure: false,
-                                   contentType: mode == .signUp ? .emailAddress : .username)
-                        inputField("lock", placeholder: mode == .signUp ? "Create a password" : "Password",
-                                   text: $password, field: .password, secure: true,
-                                   contentType: mode == .signUp ? .newPassword : .password)
-                    }
-                    .padding(.horizontal, 28)
-
-                    if let err = auth.errorMessage {
-                        HStack(spacing: 6) {
-                            Image(systemName: "exclamationmark.circle.fill")
-                            Text(err)
-                        }
-                        .font(AvaTheme.font(13, weight: .medium))
-                        .foregroundStyle(Color(hex: "C0392B"))
-                        .padding(.horizontal, 28).padding(.top, 12)
-                        .transition(.move(edge: .top).combined(with: .opacity))
-                    }
-
-                    Button {
-                        _Concurrency.Task {
-                            if mode == .signUp { await auth.signUp(email: email, password: password) }
-                            else               { await auth.signIn(email: email, password: password) }
-                            if auth.state == .authenticated { await finishAuth() }
-                        }
-                    } label: {
-                        ZStack {
-                            Text(mode == .signUp ? "Create account" : "Sign in")
-                                .font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(.white)
-                                .opacity(auth.isLoading ? 0 : 1)
-                            if auth.isLoading { ProgressView().tint(.white) }
-                        }
-                        .frame(maxWidth: .infinity).padding(.vertical, 18)
-                        .background(Capsule().fill(canSubmit
-                            ? AnyShapeStyle(AvaTheme.blushTerracotta)
-                            : AnyShapeStyle(AvaTheme.line)))
-                        .animation(.easeInOut(duration: 0.2), value: canSubmit)
-                    }
-                    .buttonStyle(.plain).disabled(!canSubmit)
-                    .padding(.horizontal, 28).padding(.top, 20)
-
-                    Button { withAnimation { mode = mode == .signUp ? .signIn : .signUp } } label: {
-                        Text(mode == .signUp
-                             ? "Already have an account? **Sign in**"
-                             : "No account? **Sign up**")
-                            .font(AvaTheme.font(14, weight: .medium))
-                            .foregroundStyle(AvaTheme.terracotta)
-                    }
-                    .buttonStyle(.plain).frame(maxWidth: .infinity)
-                    .padding(.top, 16).padding(.bottom, 50)
                 }
             }
             .animation(.easeInOut(duration: 0.2), value: auth.errorMessage)
+            .animation(.easeInOut(duration: 0.25), value: step)
+        }
+    }
+
+    // MARK: - Step 1: Email + Apple
+
+    private var emailStep: some View {
+        VStack(spacing: 0) {
+            // Apple Sign In
+            Button {
+                _Concurrency.Task {
+                    await auth.signInWithApple()
+                    if auth.state == .authenticated { await finishAuth() }
+                }
+            } label: {
+                HStack(spacing: 10) {
+                    Image(systemName: "apple.logo").font(.system(size: 18, weight: .semibold))
+                    Text(isNewUser ? "Continue with Apple" : "Sign in with Apple")
+                        .font(AvaTheme.font(16, weight: .bold))
+                }
+                .foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
+                .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.ink))
+            }
+            .buttonStyle(.plain).padding(.horizontal, 28)
+
+            // Divider
+            HStack(spacing: 12) {
+                Rectangle().fill(AvaTheme.line).frame(height: 1)
+                Text("or email").font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.inkSoft)
+                Rectangle().fill(AvaTheme.line).frame(height: 1)
+            }
+            .padding(.horizontal, 28).padding(.vertical, 20)
+
+            // Email field
+            HStack(spacing: 12) {
+                Image(systemName: "envelope").font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AvaTheme.inkSoft).frame(width: 20)
+                TextField("your@email.com", text: $email)
+                    .font(AvaTheme.font(15, weight: .medium)).foregroundStyle(AvaTheme.ink)
+                    .keyboardType(.emailAddress).textContentType(.emailAddress)
+                    .autocorrectionDisabled().textInputAutocapitalization(.never)
+                    .focused($emailFocused).submitLabel(.done)
+                    .onSubmit { if emailValid { sendCode() } }
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+            .padding(.horizontal, 28)
+
+            // Error
+            if let err = auth.errorMessage {
+                errorBanner(err).padding(.horizontal, 28).padding(.top, 12)
+            }
+
+            // Send code button
+            Button(action: sendCode) {
+                ZStack {
+                    Text("Send code →")
+                        .font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(.white)
+                        .opacity(auth.isLoading ? 0 : 1)
+                    if auth.isLoading { ProgressView().tint(.white) }
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 18)
+                .background(Capsule().fill(emailValid
+                    ? AnyShapeStyle(AvaTheme.blushTerracotta)
+                    : AnyShapeStyle(AvaTheme.line)))
+                .animation(.easeInOut(duration: 0.2), value: emailValid)
+            }
+            .buttonStyle(.plain).disabled(!emailValid || auth.isLoading)
+            .padding(.horizontal, 28).padding(.top, 20).padding(.bottom, 50)
+        }
+        .onAppear { emailFocused = true }
+    }
+
+    // MARK: - Step 2: OTP entry
+
+    private var otpStep: some View {
+        VStack(spacing: 0) {
+            // 6-digit code input
+            HStack(spacing: 12) {
+                Image(systemName: "number").font(.system(size: 15, weight: .medium))
+                    .foregroundStyle(AvaTheme.inkSoft).frame(width: 20)
+                TextField("123456", text: $otp)
+                    .font(AvaTheme.font(22, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                    .keyboardType(.numberPad).textContentType(.oneTimeCode)
+                    .focused($otpFocused)
+                    .onChange(of: otp) { _, val in
+                        // Keep only digits, max 6
+                        otp = String(val.filter { $0.isNumber }.prefix(6))
+                        if otp.count == 6 { verifyOTP() }
+                    }
+                    .tracking(8)
+            }
+            .padding(16)
+            .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+            .padding(.horizontal, 28)
+
+            // Error
+            if let err = auth.errorMessage {
+                errorBanner(err).padding(.horizontal, 28).padding(.top, 12)
+            }
+
+            // Verify button
+            Button(action: verifyOTP) {
+                ZStack {
+                    Text("Verify →")
+                        .font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(.white)
+                        .opacity(auth.isLoading ? 0 : 1)
+                    if auth.isLoading { ProgressView().tint(.white) }
+                }
+                .frame(maxWidth: .infinity).padding(.vertical, 18)
+                .background(Capsule().fill(otpValid
+                    ? AnyShapeStyle(AvaTheme.blushTerracotta)
+                    : AnyShapeStyle(AvaTheme.line)))
+                .animation(.easeInOut(duration: 0.2), value: otpValid)
+            }
+            .buttonStyle(.plain).disabled(!otpValid || auth.isLoading)
+            .padding(.horizontal, 28).padding(.top, 20)
+
+            // Resend code
+            Button { sendCode() } label: {
+                Text("Resend code")
+                    .font(AvaTheme.font(14, weight: .semibold))
+                    .foregroundStyle(AvaTheme.terracotta)
+            }
+            .buttonStyle(.plain).padding(.top, 16).padding(.bottom, 50)
+            .frame(maxWidth: .infinity)
+        }
+        .onAppear { otpFocused = true }
+    }
+
+    // MARK: - Actions
+
+    private func sendCode() {
+        guard emailValid else { return }
+        _Concurrency.Task {
+            await auth.sendOTP(email: email)
+            if auth.errorMessage == nil {
+                withAnimation { step = .otp }
+            }
+        }
+    }
+
+    private func verifyOTP() {
+        guard otpValid else { return }
+        _Concurrency.Task {
+            await auth.verifyOTP(email: email, token: otp)
+            if auth.state == .authenticated { await finishAuth() }
         }
     }
 
@@ -126,35 +229,14 @@ struct AuthView: View {
         onComplete()
     }
 
-    private func inputField(
-        _ icon: String, placeholder: String, text: Binding<String>,
-        field: Field, secure: Bool, contentType: UITextContentType
-    ) -> some View {
-        HStack(spacing: 12) {
-            Image(systemName: icon).font(.system(size: 15, weight: .medium))
-                .foregroundStyle(AvaTheme.inkSoft).frame(width: 20)
-            Group {
-                if secure {
-                    SecureField(placeholder, text: text).textContentType(contentType)
-                } else {
-                    TextField(placeholder, text: text)
-                        .keyboardType(.emailAddress).textContentType(contentType)
-                        .autocorrectionDisabled().textInputAutocapitalization(.never)
-                }
-            }
-            .font(AvaTheme.font(15, weight: .medium)).foregroundStyle(AvaTheme.ink)
-            .focused($focused, equals: field)
-            .submitLabel(field == .email ? .next : .done)
-            .onSubmit {
-                if field == .email { focused = .password }
-                else { _Concurrency.Task {
-                    if mode == .signUp { await auth.signUp(email: email, password: password) }
-                    else               { await auth.signIn(email: email, password: password) }
-                    if auth.state == .authenticated { await finishAuth() }
-                }}
-            }
+    private func errorBanner(_ message: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "exclamationmark.circle.fill")
+            Text(message)
         }
-        .padding(16).background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
+        .font(AvaTheme.font(13, weight: .medium))
+        .foregroundStyle(Color(hex: "C0392B"))
+        .transition(.move(edge: .top).combined(with: .opacity))
     }
 }
 
