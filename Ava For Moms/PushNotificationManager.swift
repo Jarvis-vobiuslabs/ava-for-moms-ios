@@ -1,6 +1,7 @@
 import UserNotifications
 import UIKit
 import Supabase
+@preconcurrency import ObjectiveC
 
 // Requests permission, registers with APNs, and saves the device
 // token to Supabase so the morning-brief edge function can reach this device.
@@ -40,15 +41,19 @@ enum PushNotificationManager {
     // ── Token listener ────────────────────────────────────────────────────
 
     private static func listenForToken(userId: UUID) async {
+        // Use a Sendable reference box to avoid capturing a var in a @Sendable closure
+        final class ObserverRef: @unchecked Sendable { var value: NSObjectProtocol? }
+        let ref = ObserverRef()
+
         await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
-            var observer: NSObjectProtocol?
-            observer = NotificationCenter.default.addObserver(
+            ref.value = NotificationCenter.default.addObserver(
                 forName: .apnsTokenReceived,
                 object: nil,
                 queue: .main
             ) { notification in
                 guard let token = notification.object as? String else { return }
-                if let obs = observer { NotificationCenter.default.removeObserver(obs) }
+                if let obs = ref.value { NotificationCenter.default.removeObserver(obs) }
+                ref.value = nil
                 _Concurrency.Task { await saveToken(token, userId: userId) }
                 cont.resume()
             }
