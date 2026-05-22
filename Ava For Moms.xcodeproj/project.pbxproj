@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		647B91192FABC12400084E3C /* Supabase in Frameworks */ = {isa = PBXBuildFile; productRef = 647B91182FABC12400084E3C /* Supabase */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		647B907A2FAA90BC00084E3C /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -52,6 +56,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				647B91192FABC12400084E3C /* Supabase in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -78,6 +83,7 @@
 				647B90692FAA90BA00084E3C /* Ava For Moms */,
 				647B907C2FAA90BC00084E3C /* Ava For MomsTests */,
 				647B90862FAA90BC00084E3C /* Ava For MomsUITests */,
+				647B91172FABC12400084E3C /* Frameworks */,
 				647B90682FAA90BA00084E3C /* Products */,
 			);
 			sourceTree = "<group>";
@@ -90,6 +96,13 @@
 				647B90832FAA90BC00084E3C /* Ava For MomsUITests.xctest */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		647B91172FABC12400084E3C /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+			);
+			name = Frameworks;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -112,6 +125,7 @@
 			);
 			name = "Ava For Moms";
 			packageProductDependencies = (
+				647B91182FABC12400084E3C /* Supabase */,
 			);
 			productName = "Ava For Moms";
 			productReference = 647B90672FAA90BA00084E3C /* Ava For Moms.app */;
@@ -195,6 +209,9 @@
 			);
 			mainGroup = 647B905E2FAA90BA00084E3C;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				647B91162FABBEF600084E3C /* XCRemoteSwiftPackageReference "supabase-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 647B90682FAA90BA00084E3C /* Products */;
 			projectDirPath = "";
@@ -390,6 +407,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Ava For Moms/Ava For Moms.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = FPBLC265J4;
@@ -413,7 +431,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Vobius-Labs-Inc..Ava-For-Moms";
+				PRODUCT_BUNDLE_IDENTIFIER = com.avaformoms.Avaapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -434,6 +452,7 @@
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
+				CODE_SIGN_ENTITLEMENTS = "Ava For Moms/Ava For Moms.entitlements";
 				CODE_SIGN_STYLE = Automatic;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = FPBLC265J4;
@@ -457,7 +476,7 @@
 				"LD_RUNPATH_SEARCH_PATHS[sdk=macosx*]" = "@executable_path/../Frameworks";
 				MACOSX_DEPLOYMENT_TARGET = 26.3;
 				MARKETING_VERSION = 1.0;
-				PRODUCT_BUNDLE_IDENTIFIER = "Vobius-Labs-Inc..Ava-For-Moms";
+				PRODUCT_BUNDLE_IDENTIFIER = com.avaformoms.Avaapp;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				REGISTER_APP_GROUPS = YES;
 				SDKROOT = auto;
@@ -615,6 +634,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		647B91162FABBEF600084E3C /* XCRemoteSwiftPackageReference "supabase-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/supabase/supabase-swift";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.5.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		647B91182FABC12400084E3C /* Supabase */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 647B91162FABBEF600084E3C /* XCRemoteSwiftPackageReference "supabase-swift" */;
+			productName = Supabase;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 647B905F2FAA90BA00084E3C /* Project object */;
 }
