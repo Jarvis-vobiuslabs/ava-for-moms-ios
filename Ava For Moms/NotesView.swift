@@ -115,17 +115,10 @@ private struct NoteCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
-    private var iconName: String { note.isAva ? "face.smiling" : "note.text" }
-    private var iconBg: Color { note.isAva ? AvaTheme.blushTerracotta.opacity(0.15) : AvaTheme.bgDeep }
-    private var iconFg: Color { note.isAva ? AvaTheme.terracotta : AvaTheme.inkMute }
-
     var body: some View {
         Button(action: onTap) {
             HStack(alignment: .top, spacing: 14) {
-                ZStack {
-                    RoundedRectangle(cornerRadius: 10).fill(iconBg).frame(width: 36, height: 36)
-                    Image(systemName: iconName).font(.system(size: 15, weight: .medium)).foregroundStyle(iconFg)
-                }
+                noteIcon
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
                         Text(note.title)
@@ -159,6 +152,19 @@ private struct NoteCard: View {
         .swipeActions(edge: .trailing) {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var noteIcon: some View {
+        ZStack {
+            if note.isAva {
+                RoundedRectangle(cornerRadius: 10).fill(AvaTheme.blushTerracotta.opacity(0.15)).frame(width: 36, height: 36)
+                Image(systemName: "face.smiling").font(.system(size: 15, weight: .medium)).foregroundStyle(AvaTheme.terracotta)
+            } else {
+                RoundedRectangle(cornerRadius: 10).fill(AvaTheme.bgDeep).frame(width: 36, height: 36)
+                Image(systemName: "note.text").font(.system(size: 15, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
             }
         }
     }
