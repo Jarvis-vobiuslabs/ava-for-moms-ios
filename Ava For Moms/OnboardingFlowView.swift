@@ -56,7 +56,10 @@ struct OnboardingFlowView: View {
             OnboardingPrivacyView(data: data, onNext: advance, onBack: back)
         case 6:
             // Paywall — onComplete advances to auth step
-            PaywallView(data: data, onComplete: advance)
+            PaywallView(data: data, onComplete: advance, onSkip: {
+                UserDefaults.standard.set(true, forKey: "ava.freeTrialMode")
+                advance()
+            })
         default:
             // Step 7 — create account, save onboarding data, enter app
             // Auth state change automatically triggers ContentView to show MainTabView

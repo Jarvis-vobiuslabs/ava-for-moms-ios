@@ -244,7 +244,8 @@ serve(async (req: Request) => {
                   (subscription?.status === "active" || subscription?.status === "trial")
     const model = isPro ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001"
 
-    const systemPrompt = buildSystemPrompt(profile, memories, notes, timezone, resolvedOffset)
+    const isFirstMessage = history.length === 0
+    const systemPrompt = buildSystemPrompt(profile, memories, notes, timezone, resolvedOffset, isFirstMessage)
 
     // ── Ensure conversation exists ───────────────────────────────────────
     await admin.from("conversations").upsert({
@@ -436,7 +437,7 @@ function extractMemoriesBackground(conversationId: string, token: string) {
 
 // ── System prompt builder ─────────────────────────────────────────────────────
 
-function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone: string | undefined, resolvedOffset: number): string {
+function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone: string | undefined, resolvedOffset: number, isFirstMessage: boolean = false): string {
   const family  = profile?.family_members || []
   const partner = family.find((m: any) => m.relationship === "partner")
   const kids    = family.filter((m: any) => m.relationship === "child")
@@ -500,6 +501,9 @@ function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone
     "## What you can help with",
     "Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, and just being there.",
     "",
+    isFirstMessage ? "## First message" : "",
+    isFirstMessage ? "This is " + name + "'s very first message to you. After responding to what she said, naturally weave in a brief warm mention of the key things you can help with (calendar, tasks, grocery list, notes) — keep it conversational and friendly, not a bullet list." : "",
+    isFirstMessage ? "" : "",
     "Today's date: " + today,
     "User's timezone: " + tz + " (UTC" + offsetStr + ")",
   ]

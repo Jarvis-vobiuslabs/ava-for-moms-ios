@@ -4,6 +4,7 @@ import StoreKit
 struct PaywallView: View {
     var data: OnboardingData
     let onComplete: () -> Void
+    var onSkip: (() -> Void)? = nil
 
     @Environment(AuthManager.self) private var auth
     @Environment(SubscriptionManager.self) private var store
@@ -34,6 +35,18 @@ struct PaywallView: View {
                 }
                 .padding(.horizontal, 28).padding(.top, 60).padding(.bottom, 28)
 
+                // ── Skip option ────────────────────────────────────────────
+                if let onSkip {
+                    Button(action: onSkip) {
+                        Text("Just check it out — try 1 free chat first →")
+                            .font(AvaTheme.font(13, weight: .semibold))
+                            .foregroundStyle(AvaTheme.terracotta)
+                            .underline()
+                    }
+                    .buttonStyle(.plain)
+                    .padding(.bottom, 20)
+                }
+
                 // ── Billing toggle ─────────────────────────────────────────
                 HStack(spacing: 0) {
                     togglePill(label: "Monthly",        active: !isAnnual) { isAnnual = false }
@@ -51,11 +64,11 @@ struct PaywallView: View {
                     product: proProduct,
                     annualSubtitle: nil,
                     features: [
-                        "Sonnet AI — deeper, warmer responses",
-                        "Expanded memory — remembers more",
-                        "Weekly life summary every Sunday",
-                        "Richer morning brief",
-                        "Early access to new features",
+                        "Super Brain Ava — feels more like a real friend",
+                        "Remembers more about you & your family",
+                        "Weekly Sunday reset — your week summarised",
+                        "Morning brief to start your day with clarity",
+                        "First to get every new feature",
                     ]
                 )
                 .padding(.horizontal, 18)
@@ -69,9 +82,9 @@ struct PaywallView: View {
                     product: standardProduct,
                     annualSubtitle: nil,
                     features: [
-                        "Smart AI (Haiku + Sonnet routing)",
-                        "Full calendar, tasks & grocery",
-                        "Daily brief & reminders",
+                        "Regular Ava — your everyday mental load helper",
+                        "Manage your calendar, tasks & grocery list",
+                        "Notes for passwords, reminders & important stuff",
                         "Family member profiles",
                     ]
                 )

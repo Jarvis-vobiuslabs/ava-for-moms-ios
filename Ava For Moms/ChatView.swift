@@ -7,11 +7,17 @@ struct ChatView: View {
     @Environment(TaskStore.self) private var taskStore
     @Environment(GroceryStore.self) private var groceryStore
     @Environment(NotesStore.self) private var notesStore
+    @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var chatService = ChatService()
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
     @State private var showNotes = false
+    @State private var showFreeTrialPaywall = false
     @FocusState private var inputFocused: Bool
+
+    private var isFreeTrialMode: Bool { UserDefaults.standard.bool(forKey: "ava.freeTrialMode") }
+    private var freeMessageUsed: Bool { UserDefaults.standard.bool(forKey: "ava.freeMessageUsed") }
+    private var isSubscribed: Bool { subscriptionManager.tier.isActive }
 
     // Bottom padding: sits above keyboard when open, above tab bar when closed
     private var composerBottomPad: CGFloat {
@@ -42,6 +48,22 @@ struct ChatView: View {
             if let userId = auth.currentUserId {
                 await chatService.loadHistory(userId: userId)
             }
+        }
+        .onChange(of: chatService.isTyping) { _, isTyping in
+            guard !isTyping,
+                  isFreeTrialMode,
+                  !isSubscribed,
+                  !freeMessageUsed,
+                  chatService.messages.count >= 2 else { return }
+            UserDefaults.standard.set(true, forKey: "ava.freeMessageUsed")
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.6) {
+                showFreeTrialPaywall = true
+            }
+        }
+        .sheet(isPresented: $showFreeTrialPaywall) {
+            PaywallView(data: OnboardingData(), onComplete: { showFreeTrialPaywall = false })
+                .environment(auth)
+                .environment(subscriptionManager)
         }
         .onChange(of: chatService.toolsExecuted) { _, tools in
             guard !tools.isEmpty, let userId = auth.currentUserId else { return }
@@ -181,7 +203,22 @@ struct ChatView: View {
     // MARK: - Composer
 
     private var composer: some View {
-        HStack(alignment: .bottom, spacing: 8) {
+        VStack(spacing: 8) {
+            if freeTrialExhausted {
+                Button { showFreeTrialPaywall = true } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "lock.fill").font(.system(size: 12))
+                        Text("Subscribe to keep chatting with Ava")
+                            .font(AvaTheme.font(13, weight: .bold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(maxWidth: .infinity).padding(.vertical, 12)
+                    .background(Capsule().fill(AvaTheme.blushTerracotta))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 14)
+            }
+            HStack(alignment: .bottom, spacing: 8) {
             TextField("Message Ava…", text: $inputText, axis: .vertical)
                 .font(AvaTheme.font(15, weight: .medium))
                 .foregroundStyle(AvaTheme.ink)
@@ -217,11 +254,16 @@ struct ChatView: View {
                 .stroke(AvaTheme.terracotta.opacity(inputFocused ? 0.4 : 0), lineWidth: 1.5)
         )
         .padding(.horizontal, 14)
+        } // end VStack
         .padding(.bottom, composerBottomPad)
     }
 
+    private var freeTrialExhausted: Bool { isFreeTrialMode && freeMessageUsed && !isSubscribed }
+
     private var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chatService.isTyping
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        && !chatService.isTyping
+        && !freeTrialExhausted
     }
 
     // MARK: - Send
