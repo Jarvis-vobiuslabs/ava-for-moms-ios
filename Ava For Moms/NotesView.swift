@@ -53,14 +53,16 @@ struct NotesView: View {
                 } else if store.notes.isEmpty {
                     emptyState
                 } else {
-                    ScrollView {
-                        LazyVStack(spacing: 12) {
-                            ForEach(store.notes) { note in
-                                noteCard(note)
-                            }
+                    List {
+                        ForEach(store.notes) { note in
+                            noteCard(note)
+                                .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                                .listRowBackground(AvaTheme.bg)
+                                .listRowSeparator(.hidden)
                         }
-                        .padding(.horizontal, 18).padding(.bottom, 40)
                     }
+                    .listStyle(.plain)
+                    .scrollContentBackground(.hidden)
                 }
             }
         }
