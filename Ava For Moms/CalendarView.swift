@@ -135,13 +135,16 @@ struct CalendarView: View {
                             HStack { Spacer(); ProgressView().tint(AvaTheme.terracotta); Spacer() }
                                 .padding(.vertical, 30)
                         } else if selectedEvents.isEmpty {
-                            VStack(spacing: 8) {
-                                Text("No events").font(AvaTheme.font(15, weight: .heavy)).foregroundStyle(AvaTheme.ink)
-                                Text("Tap + to add one or ask Ava to schedule something")
-                                    .font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
-                                    .multilineTextAlignment(.center)
+                            Button { showAddEvent = true } label: {
+                                VStack(spacing: 8) {
+                                    Text("No events").font(AvaTheme.font(15, weight: .heavy)).foregroundStyle(AvaTheme.ink)
+                                    Text("Tap to add one, or ask Ava to schedule something")
+                                        .font(AvaTheme.font(13, weight: .medium)).foregroundStyle(AvaTheme.terracotta)
+                                        .multilineTextAlignment(.center)
+                                }
+                                .frame(maxWidth: .infinity).padding(.vertical, 30)
                             }
-                            .frame(maxWidth: .infinity).padding(.vertical, 30)
+                            .buttonStyle(.plain)
                         } else {
                             ForEach(selectedEvents) { event in
                                 eventRow(event)

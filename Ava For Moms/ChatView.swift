@@ -68,6 +68,8 @@ struct ChatView: View {
             .buttonStyle(.plain)
 
             Circle().fill(AvaTheme.blushTerracotta).frame(width: 40, height: 40)
+                .overlay(Image(systemName: "face.smiling")
+                    .font(.system(size: 18, weight: .bold)).foregroundStyle(.white))
                 .shadow(color: AvaTheme.terracotta.opacity(0.35), radius: 6, x: 0, y: 3)
 
             VStack(alignment: .leading, spacing: 2) {
