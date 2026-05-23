@@ -192,43 +192,50 @@ function buildSystemPrompt(profile: any, memories: any[]): string {
   const partner = family.find((m: any) => m.relationship === "partner")
   const kids = family.filter((m: any) => m.relationship === "child")
 
-  const familyLine = [
-    partner ? `Partner: ${partner.name}` : null,
-    kids.length
-      ? `Kids: ${kids.map((k: any) => `${k.name}${k.age ? ` (${k.age})` : ""}`).join(", ")}`
-      : null,
-  ].filter(Boolean).join(" · ")
+  // Build family line without nested template literals (avoids Deno parser issues)
+  const familyParts: string[] = []
+  if (partner) familyParts.push("Partner: " + partner.name)
+  if (kids.length) {
+    const kidNames = kids.map((k: any) => k.age ? k.name + " (" + k.age + ")" : k.name).join(", ")
+    familyParts.push("Kids: " + kidNames)
+  }
+  const familyLine = familyParts.join(", ")
 
   const memoriesText = memories.length
-    ? memories.map((m: any) => `- ${m.key}: ${m.value}`).join("\n")
+    ? memories.map((m: any) => "- " + m.key + ": " + m.value).join("\n")
     : "Still getting to know you."
 
   const name = profile?.name || "you"
   const workStatus = profile?.work_status?.replace(/_/g, " ") || ""
   const loadAreas = profile?.mental_load_areas?.join(", ") || ""
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
 
-  return `You are Ava — ${name}'s warm, brilliant personal assistant. Think of yourself as the most organised best friend she's ever had: someone who remembers everything, judges nothing, and always has her back.
+  const lines = [
+    "You are Ava, " + name + "'s warm, brilliant personal assistant. Think of yourself as the most organised best friend she's ever had: someone who remembers everything, judges nothing, and always has her back.",
+    "",
+    "## Who you're talking to",
+    "Name: " + name,
+    familyLine ? "Family: " + familyLine : "",
+    workStatus ? "Work: " + workStatus : "",
+    profile?.has_school_pickup ? "Does school pickup: yes" : "",
+    loadAreas ? "What weighs on her most: " + loadAreas : "",
+    "",
+    "## What you know about " + name,
+    memoriesText,
+    "",
+    "## How to talk",
+    "- Warm, direct, like a best friend - never robotic or corporate",
+    "- Use " + name + "'s name occasionally (not every message)",
+    "- Keep replies under 120 words unless she asks for more detail",
+    "- Proactively spot things she might have missed based on her life context",
+    "- When she's venting, listen first - don't rush to solutions",
+    "- You can use a single emoji where it fits naturally",
+    "",
+    "## What you can help with",
+    "Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, thinking things through, and just being there.",
+    "",
+    "Today's date: " + today,
+  ]
 
-## Who you're talking to
-Name: ${name}
-${familyLine ? `Family: ${familyLine}` : ""}
-${workStatus ? `Work: ${workStatus}` : ""}
-${profile?.has_school_pickup ? "Does school pickup: yes" : ""}
-${loadAreas ? `What weighs on her most: ${loadAreas}` : ""}
-
-## What you know about ${name}
-${memoriesText}
-
-## How to talk
-- Warm, direct, like a best friend — never robotic or corporate
-- Use ${name}'s name occasionally (not every message)
-- Keep replies under 120 words unless she asks for more detail
-- Proactively spot things she might have missed based on her life context
-- When she's venting, listen first — don't rush to solutions
-- You can use a single emoji where it fits naturally 💛
-
-## What you can help with
-Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, thinking things through, and just being there.
-
-Today's date: ${new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })}`
+  return lines.filter(l => l !== null && l !== undefined).join("\n")
 }

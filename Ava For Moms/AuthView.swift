@@ -25,7 +25,7 @@ struct AuthView: View {
 
     private var isNewUser: Bool { onboardingData != nil }
     private var emailValid: Bool { email.contains("@") && email.contains(".") }
-    private var otpValid: Bool { otp.count == 6 }
+    private var otpValid: Bool { otp.count >= 6 && otp.count <= 8 }
     private var passwordValid: Bool { password.count >= 6 }
 
     var body: some View {
@@ -198,9 +198,7 @@ struct AuthView: View {
                     .keyboardType(.numberPad).textContentType(.oneTimeCode)
                     .focused($otpFocused)
                     .onChange(of: otp) { _, val in
-                        // Keep only digits, max 6
-                        otp = String(val.filter { $0.isNumber }.prefix(6))
-                        if otp.count == 6 { verifyOTP() }
+                        otp = String(val.filter { $0.isNumber }.prefix(8))
                     }
                     .tracking(8)
             }
