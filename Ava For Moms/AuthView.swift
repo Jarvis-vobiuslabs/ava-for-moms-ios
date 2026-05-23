@@ -14,6 +14,7 @@ struct AuthView: View {
     @State private var password = ""
     @State private var otpSent = false
     @State private var usePassword = false
+    @State private var isSignupOTP = false   // true when OTP confirms a new password sign-up
     @FocusState private var emailFocused: Bool
     @FocusState private var otpFocused: Bool
     @FocusState private var passwordFocused: Bool
@@ -43,7 +44,7 @@ struct AuthView: View {
                     // ── Header ─────────────────────────────────────────────
                     VStack(alignment: .leading, spacing: 10) {
                         if step == .otp {
-                            Button { withAnimation { step = .email; otp = "" } } label: {
+                            Button { withAnimation { step = .email; otp = ""; isSignupOTP = false } } label: {
                                 HStack(spacing: 6) {
                                     Image(systemName: "chevron.left")
                                         .font(.system(size: 13, weight: .semibold))
@@ -58,13 +59,15 @@ struct AuthView: View {
 
                         Text(step == .email
                              ? (isNewUser ? "Create your account" : "Welcome back")
-                             : "Check your email")
+                             : (isSignupOTP ? "Confirm your email" : "Check your email"))
                             .font(AvaTheme.font(30, weight: .heavy))
                             .foregroundStyle(AvaTheme.ink).tracking(-0.8)
 
                         Text(step == .email
                              ? "Enter your email — we'll send you a code."
-                             : "We sent an 8-digit code to\n\(email)")
+                             : (isSignupOTP
+                                ? "We sent an 8-digit confirmation code to\n\(email)"
+                                : "We sent an 8-digit code to\n\(email)"))
                             .font(AvaTheme.font(16, weight: .medium))
                             .foregroundStyle(AvaTheme.inkMute).lineSpacing(3)
                     }
@@ -135,7 +138,7 @@ struct AuthView: View {
                         .font(AvaTheme.font(15, weight: .medium)).foregroundStyle(AvaTheme.ink)
                         .textContentType(.password)
                         .focused($passwordFocused).submitLabel(.done)
-                        .onSubmit { if emailValid && passwordValid { signInWithPassword() } }
+                        .onSubmit { if emailValid && passwordValid { handlePasswordSubmit() } }
                 }
                 .padding(16)
                 .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.cream))
@@ -150,9 +153,11 @@ struct AuthView: View {
             }
 
             // Primary action button
-            Button(action: usePassword ? signInWithPassword : sendCode) {
+            Button(action: usePassword ? handlePasswordSubmit : sendCode) {
                 ZStack {
-                    Text(usePassword ? "Sign in →" : "Send code →")
+                    Text(usePassword
+                         ? (isNewUser ? "Create account →" : "Sign in →")
+                         : "Send code →")
                         .font(AvaTheme.font(16, weight: .heavy)).foregroundStyle(.white)
                         .opacity(auth.isLoading ? 0 : 1)
                     if auth.isLoading { ProgressView().tint(.white) }
@@ -175,7 +180,9 @@ struct AuthView: View {
                     auth.errorMessage = nil
                 }
             } label: {
-                Text(usePassword ? "Send me a code instead" : "Sign in with password instead")
+                Text(usePassword
+                     ? "Send me a code instead"
+                     : (isNewUser ? "Sign up with a password instead" : "Sign in with a password instead"))
                     .font(AvaTheme.font(14, weight: .semibold))
                     .foregroundStyle(AvaTheme.terracotta)
             }
@@ -228,25 +235,41 @@ struct AuthView: View {
             .buttonStyle(.plain).disabled(!otpValid || auth.isLoading)
             .padding(.horizontal, 28).padding(.top, 20)
 
-            // Resend code
-            Button { sendCode() } label: {
-                Text("Resend code")
-                    .font(AvaTheme.font(14, weight: .semibold))
-                    .foregroundStyle(AvaTheme.terracotta)
+            // Resend code (only for OTP sign-in flow; not applicable for email confirmation)
+            if !isSignupOTP {
+                Button { sendCode() } label: {
+                    Text("Resend code")
+                        .font(AvaTheme.font(14, weight: .semibold))
+                        .foregroundStyle(AvaTheme.terracotta)
+                }
+                .buttonStyle(.plain).padding(.top, 16)
+                .frame(maxWidth: .infinity)
             }
-            .buttonStyle(.plain).padding(.top, 16).padding(.bottom, 50)
-            .frame(maxWidth: .infinity)
+            Spacer().frame(height: 50)
         }
         .onAppear { otpFocused = true }
     }
 
     // MARK: - Actions
 
-    private func signInWithPassword() {
+    private func handlePasswordSubmit() {
         guard emailValid && passwordValid else { return }
-        _Concurrency.Task {
-            await auth.signInWithPassword(email: email, password: password)
-            if auth.state == .authenticated { await finishAuth() }
+        if isNewUser {
+            _Concurrency.Task {
+                let needsConfirmation = await auth.signUpWithPassword(email: email, password: password)
+                guard auth.errorMessage == nil else { return }
+                if needsConfirmation {
+                    isSignupOTP = true
+                    withAnimation { step = .otp }
+                } else if auth.state == .authenticated {
+                    await finishAuth()
+                }
+            }
+        } else {
+            _Concurrency.Task {
+                await auth.signInWithPassword(email: email, password: password)
+                if auth.state == .authenticated { await finishAuth() }
+            }
         }
     }
 
@@ -263,7 +286,7 @@ struct AuthView: View {
     private func verifyOTP() {
         guard otpValid else { return }
         _Concurrency.Task {
-            await auth.verifyOTP(email: email, token: otp)
+            await auth.verifyOTP(email: email, token: otp, isSignup: isSignupOTP)
             if auth.state == .authenticated { await finishAuth() }
         }
     }

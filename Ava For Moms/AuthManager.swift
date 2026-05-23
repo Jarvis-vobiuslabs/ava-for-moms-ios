@@ -133,15 +133,28 @@ final class AuthManager {
         }
     }
 
-    func verifyOTP(email: String, token: String) async {
+    // Returns true if email confirmation code was sent (session not yet active)
+    func signUpWithPassword(email: String, password: String) async -> Bool {
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
         do {
-            try await supabase.auth.verifyOTP(
-                email: email,
-                token: token,
-                type: .email
-            )
+            let response = try await supabase.auth.signUp(email: email, password: password)
+            return response.session == nil
+        } catch {
+            errorMessage = friendlyError(error)
+            return false
+        }
+    }
+
+    func verifyOTP(email: String, token: String, isSignup: Bool = false) async {
+        isLoading = true; errorMessage = nil
+        defer { isLoading = false }
+        do {
+            if isSignup {
+                try await supabase.auth.verifyOTP(email: email, token: token, type: .signup)
+            } else {
+                try await supabase.auth.verifyOTP(email: email, token: token, type: .email)
+            }
         } catch {
             errorMessage = friendlyError(error)
         }
