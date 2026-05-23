@@ -3,6 +3,9 @@ import SwiftUI
 struct ChatView: View {
     let onBack: () -> Void
     @Environment(AuthManager.self) private var auth
+    @Environment(CalendarStore.self) private var calendarStore
+    @Environment(TaskStore.self) private var taskStore
+    @Environment(GroceryStore.self) private var groceryStore
     @State private var chatService = ChatService()
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
@@ -36,6 +39,18 @@ struct ChatView: View {
         .task {
             if let userId = auth.currentUserId {
                 await chatService.loadHistory(userId: userId)
+            }
+        }
+        .onChange(of: chatService.toolsExecuted) { _, tools in
+            guard !tools.isEmpty, let userId = auth.currentUserId else { return }
+            if tools.contains("add_calendar_event") {
+                _Concurrency.Task { await calendarStore.load(userId: userId, weekStart: Date().startOfWeek) }
+            }
+            if tools.contains("add_task") {
+                _Concurrency.Task { await taskStore.load(userId: userId) }
+            }
+            if tools.contains("add_grocery_item") {
+                _Concurrency.Task { await groceryStore.load(userId: userId) }
             }
         }
     }

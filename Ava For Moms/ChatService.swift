@@ -11,6 +11,7 @@ final class ChatService {
     var messages: [ChatMessage] = []
     var isTyping = false
     var errorMessage: String?
+    var toolsExecuted: [String] = []   // populated after each message; triggers store refreshes
 
     private var activeConversationId: UUID?
 
@@ -24,6 +25,7 @@ final class ChatService {
         messages.append(userMsg)
         isTyping = true
         errorMessage = nil
+        toolsExecuted = []
 
         // Placeholder for Ava's reply — we stream into it
         var avaMsg = ChatMessage(role: .assistant, content: "")
@@ -66,10 +68,14 @@ final class ChatService {
                 if payload == "[DONE]" { break }
 
                 if let data = payload.data(using: .utf8),
-                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
-                   let chunk = json["text"] as? String {
-                    avaMsg.content += chunk
-                    messages[avaIndex] = avaMsg
+                   let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] {
+                    if let chunk = json["text"] as? String {
+                        avaMsg.content += chunk
+                        messages[avaIndex] = avaMsg
+                    }
+                    if let tools = json["tools"] as? [String] {
+                        toolsExecuted = tools
+                    }
                 }
             }
 
