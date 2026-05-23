@@ -14,6 +14,7 @@ struct Ava_For_MomsApp: App {
                 .environment(\.managedObjectContext, persistenceController.container.viewContext)
                 .environment(authManager)
                 .environment(subscriptionManager)
+                .preferredColorScheme(.light)
                 .onChange(of: authManager.state) { _, newState in
                     if newState == .authenticated {
                         // Set up push notifications

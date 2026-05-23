@@ -149,7 +149,7 @@ struct ChatView: View {
         .clipShape(Capsule())
         .shadow(color: AvaTheme.ink.opacity(0.08), radius: 8, x: 0, y: 4)
         .padding(.horizontal, 14)
-        .padding(.bottom, inputFocused ? 8 : 100)
+        .padding(.bottom, inputFocused ? 8 : 120)
         .animation(.easeInOut(duration: 0.25), value: inputFocused)
     }
 

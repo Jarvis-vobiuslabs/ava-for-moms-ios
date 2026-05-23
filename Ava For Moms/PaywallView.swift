@@ -49,7 +49,7 @@ struct PaywallView: View {
                     emoji: "⭐",
                     badge: "RECOMMENDED",
                     product: proProduct,
-                    annualSubtitle: isAnnual ? "7-day free trial" : nil,
+                    annualSubtitle: nil,
                     features: [
                         "Sonnet AI — deeper, warmer responses",
                         "Expanded memory — remembers more",

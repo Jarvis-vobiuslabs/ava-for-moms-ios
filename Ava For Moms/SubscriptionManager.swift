@@ -72,9 +72,14 @@ final class SubscriptionManager {
         isLoading = true
         defer { isLoading = false }
 
-        // Fetch products from App Store
-        if let fetched = try? await Product.products(for: Self.productIDs) {
+        // Fetch products — retry once after 3s if StoreKit returns empty (common on first launch)
+        if let fetched = try? await Product.products(for: Self.productIDs), !fetched.isEmpty {
             products = fetched.sorted { $0.price < $1.price }
+        } else {
+            try? await _Concurrency.Task.sleep(nanoseconds: 3_000_000_000)
+            if let fetched = try? await Product.products(for: Self.productIDs) {
+                products = fetched.sorted { $0.price < $1.price }
+            }
         }
 
         // Check what the user already owns
