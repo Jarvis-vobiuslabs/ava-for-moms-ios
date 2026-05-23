@@ -55,10 +55,12 @@ struct NotesView: View {
                 } else {
                     List {
                         ForEach(store.notes) { note in
-                            noteCard(note)
-                                .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
-                                .listRowBackground(AvaTheme.bg)
-                                .listRowSeparator(.hidden)
+                            NoteCard(note: note, onTap: { editingNote = note }) {
+                                _Concurrency.Task { await store.delete(note) }
+                            }
+                            .listRowInsets(EdgeInsets(top: 6, leading: 18, bottom: 6, trailing: 18))
+                            .listRowBackground(AvaTheme.bg)
+                            .listRowSeparator(.hidden)
                         }
                     }
                     .listStyle(.plain)
@@ -104,21 +106,26 @@ struct NotesView: View {
         }
     }
 
-    // MARK: - Note card
+}
 
-    private func noteCard(_ note: AvaNote) -> some View {
-        Button { editingNote = note } label: {
+// MARK: - Note card
+
+private struct NoteCard: View {
+    let note: AvaNote
+    let onTap: () -> Void
+    let onDelete: () -> Void
+
+    private var iconName: String { note.isAva ? "face.smiling" : "note.text" }
+    private var iconBg: Color { note.isAva ? AvaTheme.blushTerracotta.opacity(0.15) : AvaTheme.bgDeep }
+    private var iconFg: Color { note.isAva ? AvaTheme.terracotta : AvaTheme.inkMute }
+
+    var body: some View {
+        Button(action: onTap) {
             HStack(alignment: .top, spacing: 14) {
-                // Source icon
                 ZStack {
-                    RoundedRectangle(cornerRadius: 10)
-                        .fill(note.isAva ? AvaTheme.blushTerracotta.opacity(0.15) : AvaTheme.bgDeep)
-                        .frame(width: 36, height: 36)
-                    Image(systemName: note.isAva ? "face.smiling" : "note.text")
-                        .font(.system(size: 15, weight: .medium))
-                        .foregroundStyle(note.isAva ? AvaTheme.terracotta : AvaTheme.inkMute)
+                    RoundedRectangle(cornerRadius: 10).fill(iconBg).frame(width: 36, height: 36)
+                    Image(systemName: iconName).font(.system(size: 15, weight: .medium)).foregroundStyle(iconFg)
                 }
-
                 VStack(alignment: .leading, spacing: 5) {
                     HStack {
                         Text(note.title)
@@ -150,9 +157,9 @@ struct NotesView: View {
         }
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing) {
-            Button(role: .destructive) {
-                _Concurrency.Task { await store.delete(note) }
-            } label: { Label("Delete", systemImage: "trash") }
+            Button(role: .destructive, action: onDelete) {
+                Label("Delete", systemImage: "trash")
+            }
         }
     }
 }
