@@ -64,7 +64,7 @@ struct AuthView: View {
 
                         Text(step == .email
                              ? "Enter your email — we'll send you a code."
-                             : "We sent a 6-digit code to\n\(email)")
+                             : "We sent an 8-digit code to\n\(email)")
                             .font(AvaTheme.font(16, weight: .medium))
                             .foregroundStyle(AvaTheme.inkMute).lineSpacing(3)
                     }

@@ -6,9 +6,11 @@ struct ChatView: View {
     @Environment(CalendarStore.self) private var calendarStore
     @Environment(TaskStore.self) private var taskStore
     @Environment(GroceryStore.self) private var groceryStore
+    @Environment(NotesStore.self) private var notesStore
     @State private var chatService = ChatService()
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
+    @State private var showNotes = false
     @FocusState private var inputFocused: Bool
 
     // Bottom padding: sits above keyboard when open, above tab bar when closed
@@ -52,6 +54,9 @@ struct ChatView: View {
             if tools.contains("add_grocery_item") {
                 _Concurrency.Task { await groceryStore.load(userId: userId) }
             }
+            if tools.contains("save_note") {
+                _Concurrency.Task { await notesStore.load(userId: userId) }
+            }
         }
     }
 
@@ -86,9 +91,19 @@ struct ChatView: View {
                 }
             }
             Spacer()
+            Button { showNotes = true } label: {
+                Circle().fill(AvaTheme.cream).frame(width: 38, height: 38)
+                    .overlay(Image(systemName: "note.text")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AvaTheme.inkMute))
+            }
+            .buttonStyle(.plain)
         }
         .padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 14)
         .background(AvaTheme.bg)
+        .sheet(isPresented: $showNotes) {
+            NotesView().environment(auth).environment(notesStore)
+        }
     }
 
     // MARK: - Messages

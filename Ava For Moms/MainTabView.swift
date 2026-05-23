@@ -5,6 +5,7 @@ struct MainTabView: View {
     @State private var taskStore     = TaskStore()
     @State private var groceryStore  = GroceryStore()
     @State private var calendarStore = CalendarStore()
+    @State private var notesStore    = NotesStore()
     @Environment(SubscriptionManager.self) private var store
 
     var body: some View {
@@ -14,6 +15,7 @@ struct MainTabView: View {
                 .environment(taskStore)
                 .environment(groceryStore)
                 .environment(calendarStore)
+                .environment(notesStore)
 
             AvaTabBar(selected: $selectedTab)
                 .padding(.bottom, 20)

@@ -60,6 +60,18 @@ const TOOLS: Anthropic.Tool[] = [
       },
       required: ["title"]
     }
+  },
+  {
+    name: "save_note",
+    description: "Save an important note for the user. Use this when the user shares something they want remembered: a password, PIN, where they left something important, school form locations, or any information they explicitly ask you to note down.",
+    input_schema: {
+      type: "object",
+      properties: {
+        title:   { type: "string", description: "Short descriptive title, e.g. 'WiFi Password' or 'School Forms Location'" },
+        content: { type: "string", description: "The full note content" }
+      },
+      required: ["title", "content"]
+    }
   }
 ]
 
@@ -151,6 +163,17 @@ async function executeTool(name: string, input: any, admin: any, userId: string,
     return "Task added: " + input.title
   }
 
+  if (name === "save_note") {
+    const { error } = await admin.from("notes").insert({
+      user_id: userId,
+      title:   input.title,
+      content: input.content,
+      source:  "ava",
+    })
+    if (error) throw new Error("note insert failed: " + error.message)
+    return "Note saved: " + input.title
+  }
+
   throw new Error("Unknown tool: " + name)
 }
 
@@ -194,7 +217,7 @@ serve(async (req: Request) => {
       : (typeof timezoneOffsetMinutes === "number" ? timezoneOffsetMinutes : 0)
 
     // ── Load user context in parallel ────────────────────────────────────
-    const [profileRes, subscriptionRes, messagesRes, memoriesRes] = await Promise.all([
+    const [profileRes, subscriptionRes, messagesRes, memoriesRes, notesRes] = await Promise.all([
       supabase.from("profiles").select("*, family_members(*)").eq("id", user.id).single(),
       supabase.from("subscriptions").select("tier, status").eq("user_id", user.id).maybeSingle(),
       supabase.from("messages").select("role, content")
@@ -203,6 +226,9 @@ serve(async (req: Request) => {
       supabase.from("ava_memories").select("key, value, category")
         .eq("user_id", user.id)
         .order("updated_at", { ascending: false }).limit(25),
+      supabase.from("notes").select("title, content")
+        .eq("user_id", user.id)
+        .order("updated_at", { ascending: false }).limit(30),
     ])
 
     const profile      = profileRes.data
@@ -212,12 +238,13 @@ serve(async (req: Request) => {
       content: m.content,
     }))
     const memories = memoriesRes.data || []
+    const notes    = notesRes.data    || []
 
     const isPro = subscription?.tier === "pro" &&
                   (subscription?.status === "active" || subscription?.status === "trial")
     const model = isPro ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001"
 
-    const systemPrompt = buildSystemPrompt(profile, memories, timezone, resolvedOffset)
+    const systemPrompt = buildSystemPrompt(profile, memories, notes, timezone, resolvedOffset)
 
     // ── Ensure conversation exists ───────────────────────────────────────
     await admin.from("conversations").upsert({
@@ -409,7 +436,7 @@ function extractMemoriesBackground(conversationId: string, token: string) {
 
 // ── System prompt builder ─────────────────────────────────────────────────────
 
-function buildSystemPrompt(profile: any, memories: any[], timezone: string | undefined, resolvedOffset: number): string {
+function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone: string | undefined, resolvedOffset: number): string {
   const family  = profile?.family_members || []
   const partner = family.find((m: any) => m.relationship === "partner")
   const kids    = family.filter((m: any) => m.relationship === "child")
@@ -460,9 +487,13 @@ function buildSystemPrompt(profile: any, memories: any[], timezone: string | und
     "- When she's venting, listen first - do not rush to solutions",
     "- Proactively spot things she might have missed",
     "",
+    notes.length ? "## Notes saved for " + name : "",
+    notes.length ? notes.map((n: any) => "- " + n.title + ": " + n.content).join("\n") : "",
+    notes.length ? "" : "",
     "## Actions you can take",
-    "You have tools to actually add events to the calendar, items to the grocery list, and tasks to the to-do list.",
-    "When the user asks you to add something, USE THE TOOL - do not just say you will do it.",
+    "You have tools to add calendar events, grocery items, tasks, and save notes.",
+    "When the user asks you to add or note something, USE THE TOOL - do not just say you will do it.",
+    "Use save_note when the user shares a password, PIN, important location, or anything they want to remember.",
     "After using a tool, confirm briefly what you did in a warm, natural way.",
     "IMPORTANT: Always use the user's local time when setting starts_at and ends_at. Include the UTC offset in the ISO 8601 string (e.g. " + isoExample + "). Never use UTC (Z suffix) unless the user explicitly says UTC.",
     "",
