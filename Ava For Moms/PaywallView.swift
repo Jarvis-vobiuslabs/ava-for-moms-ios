@@ -189,7 +189,7 @@ struct PaywallView: View {
                 }
             } label: {
                 ZStack {
-                    Text(isPro && isAnnual ? "Start 7-day free trial" : "Subscribe to \(name)")
+                    Text(isAnnual ? "Subscribe annually" : "Subscribe to \(name)")
                         .font(AvaTheme.font(15, weight: .heavy))
                         .foregroundStyle(isPro ? AvaTheme.terracottaDeep : .white)
                         .opacity(store.isLoading ? 0 : 1)

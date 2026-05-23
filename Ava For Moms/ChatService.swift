@@ -50,9 +50,13 @@ final class ChatService {
             ])
 
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? 0
 
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                throw ChatError.serverError
+            guard status == 200 else {
+                var body = Data()
+                for try await byte in asyncBytes { body.append(byte) }
+                let detail = String(data: body, encoding: .utf8) ?? "no body"
+                throw ChatError.httpError(status, detail)
             }
 
             // Stream SSE lines
@@ -74,8 +78,11 @@ final class ChatService {
                 await extractMemories(conversationId: conversationId, token: token)
             }
 
+        } catch let ChatError.httpError(code, detail) {
+            messages[avaIndex].content = "Error \(code) — \(detail)"
+            errorMessage = "HTTP \(code)"
         } catch {
-            messages[avaIndex].content = "Something went wrong. Try again?"
+            messages[avaIndex].content = "Something went wrong: \(error.localizedDescription)"
             errorMessage = error.localizedDescription
         }
 
@@ -162,7 +169,7 @@ final class ChatService {
 
     // MARK: - Types
 
-    enum ChatError: Error { case serverError }
+    enum ChatError: Error { case serverError; case httpError(Int, String) }
 }
 
 enum MessageRole: String { case user, assistant }
