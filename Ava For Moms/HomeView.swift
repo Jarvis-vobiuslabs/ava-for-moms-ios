@@ -162,7 +162,7 @@ struct HomeView: View {
                             }
                             .padding(.bottom, 12)
 
-                            ForEach(Array(todayEvents.prefix(4))) { event in
+                            ForEach(todayEvents) { event in
                                 HStack(spacing: 12) {
                                     Rectangle()
                                         .fill(event.color)
@@ -178,18 +178,19 @@ struct HomeView: View {
                                             .foregroundStyle(AvaTheme.inkMute)
                                     }
                                     Spacer()
-                                    Image(systemName: event.source == .eventKit ? "calendar" : "face.smiling")
-                                        .font(.system(size: 11))
-                                        .foregroundStyle(AvaTheme.inkSoft)
+                                    Button {
+                                        guard let userId = auth.currentUserId else { return }
+                                        _Concurrency.Task { await calendarStore.delete(event, userId: userId) }
+                                    } label: {
+                                        Image(systemName: "xmark")
+                                            .font(.system(size: 10, weight: .bold))
+                                            .foregroundStyle(AvaTheme.inkSoft)
+                                            .frame(width: 24, height: 24)
+                                            .background(Circle().fill(AvaTheme.line))
+                                    }
+                                    .buttonStyle(.plain)
                                 }
                                 .padding(.vertical, 10)
-                            }
-
-                            if todayEvents.count > 4 {
-                                Text("+ \(todayEvents.count - 4) more")
-                                    .font(AvaTheme.font(12, weight: .medium))
-                                    .foregroundStyle(AvaTheme.inkSoft)
-                                    .padding(.top, 4)
                             }
                         }
                         .padding(.horizontal, 22)
@@ -211,7 +212,7 @@ struct HomeView: View {
                             }
                             .padding(.bottom, 12)
 
-                            ForEach(Array(allIncomplete.prefix(5))) { task in
+                            ForEach(allIncomplete) { task in
                                 HStack(spacing: 12) {
                                     RoundedRectangle(cornerRadius: 2)
                                         .fill(task.priority == "urgent" ? AvaTheme.terracotta : AvaTheme.sage)
@@ -230,12 +231,6 @@ struct HomeView: View {
                                 .padding(.vertical, 10)
                             }
 
-                            if allIncomplete.count > 5 {
-                                Text("+ \(allIncomplete.count - 5) more")
-                                    .font(AvaTheme.font(12, weight: .medium))
-                                    .foregroundStyle(AvaTheme.inkSoft)
-                                    .padding(.top, 4)
-                            }
                         }
                         .padding(.horizontal, 22)
                         .padding(.top, 22)

@@ -97,6 +97,23 @@ final class CalendarStore {
             .execute()
             .value as [EventRow] {
 
+            // Sync any Ava events not yet in native calendar
+            if calendarAccessGranted, let defaultCal = ekStore.defaultCalendarForNewEvents {
+                let alreadySynced = syncedAvaIds
+                for row in rows where !alreadySynced.contains(row.id.uuidString) {
+                    let ek = EKEvent(eventStore: ekStore)
+                    ek.title = row.title
+                    ek.notes = row.detail
+                    ek.startDate = row.startsAt
+                    ek.endDate = row.endsAt ?? Calendar.current.date(byAdding: .hour, value: 1, to: row.startsAt)!
+                    ek.calendar = defaultCal
+                    do {
+                        try ekStore.save(ek, span: .thisEvent)
+                        markSyncedNativeId(row.id)
+                    } catch {}
+                }
+            }
+
             for row in rows {
                 let color = row.colorHex.map { Color(hex: $0) } ?? AvaTheme.terracotta
                 merged.append(AvaCalendarEvent(
@@ -161,15 +178,30 @@ final class CalendarStore {
         _ = try? await (try? supabase.from("calendar_events").insert(row, returning: .minimal))?.execute()
 
         // Optionally add to native iOS Calendar
-        if addToNativeCalendar && calendarAccessGranted {
+        if addToNativeCalendar && calendarAccessGranted,
+           let defaultCal = ekStore.defaultCalendarForNewEvents {
             let ek = EKEvent(eventStore: ekStore)
             ek.title = title
             ek.notes = detail
             ek.startDate = startsAt
             ek.endDate = endsAt
-            ek.calendar = ekStore.defaultCalendarForNewEvents
-            _ = try? ekStore.save(ek, span: .thisEvent)
+            ek.calendar = defaultCal
+            if (try? ekStore.save(ek, span: .thisEvent)) != nil {
+                markSyncedNativeId(newId)
+            }
         }
+    }
+
+    // MARK: - Native calendar sync tracking
+
+    private var syncedAvaIds: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: "ava.syncedNativeIds") ?? [])
+    }
+
+    private func markSyncedNativeId(_ id: UUID) {
+        var ids = syncedAvaIds
+        ids.insert(id.uuidString)
+        UserDefaults.standard.set(Array(ids), forKey: "ava.syncedNativeIds")
     }
 
     // MARK: - Delete event

@@ -46,9 +46,12 @@ final class ChatService {
                 "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5aHpmanJ2YnJxcnNlc3h1YnR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTEwOTYsImV4cCI6MjA5MzY2NzA5Nn0.6vXXbQkc0R7GdO3F8lES6bqnoxC5rgaBzaYz3R8t1Dg",
                 forHTTPHeaderField: "apikey"
             )
+            let offsetMinutes = TimeZone.current.secondsFromGMT() / 60
             request.httpBody = try JSONSerialization.data(withJSONObject: [
                 "message": text,
                 "conversationId": conversationId.uuidString,
+                "timezone": TimeZone.current.identifier,
+                "timezoneOffsetMinutes": offsetMinutes,
             ])
 
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)

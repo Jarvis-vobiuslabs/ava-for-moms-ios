@@ -63,16 +63,48 @@ const TOOLS: Anthropic.Tool[] = [
   }
 ]
 
+// ── Timezone helpers ──────────────────────────────────────────────────────────
+
+// Compute UTC offset in minutes from an IANA timezone identifier.
+// e.g. "America/Chicago" in CDT → -300, in CST → -360
+function getOffsetMinutesFromTz(tz: string): number {
+  try {
+    const now = new Date()
+    const parts = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour12: false,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", second: "2-digit",
+    }).formatToParts(now)
+    const get = (t: string) => parseInt(parts.find(p => p.type === t)?.value ?? "0")
+    const h = get("hour") % 24
+    const asUtc = Date.UTC(get("year"), get("month") - 1, get("day"), h, get("minute"), get("second"))
+    return Math.round((asUtc - now.getTime()) / 60000)
+  } catch {
+    return 0
+  }
+}
+
 // ── Tool executor ────────────────────────────────────────────────────────────
 
-async function executeTool(name: string, input: any, admin: any, userId: string): Promise<string> {
+// Strip any timezone from Claude's timestamp and reattach the user's real offset.
+// This ensures "3pm" is always stored as 3pm local, regardless of what Claude appended.
+function applyUserOffset(ts: string, offsetMinutes: number): string {
+  if (!ts) return ts
+  const bare = ts.replace(/Z$/, "").replace(/[+-]\d{2}:\d{2}$/, "")
+  const sign = offsetMinutes >= 0 ? "+" : "-"
+  const h = String(Math.floor(Math.abs(offsetMinutes) / 60)).padStart(2, "0")
+  const m = String(Math.abs(offsetMinutes) % 60).padStart(2, "0")
+  return bare + sign + h + ":" + m
+}
+
+async function executeTool(name: string, input: any, admin: any, userId: string, offsetMinutes: number): Promise<string> {
   if (name === "add_calendar_event") {
     const { error } = await admin.from("calendar_events").insert({
       user_id:   userId,
       title:     input.title,
       detail:    input.detail || null,
-      starts_at: input.starts_at,
-      ends_at:   input.ends_at,
+      starts_at: applyUserOffset(input.starts_at, offsetMinutes),
+      ends_at:   applyUserOffset(input.ends_at, offsetMinutes),
       color_hex: "#D46A47",
       source:    "ava",
       all_day:   false,
@@ -84,21 +116,23 @@ async function executeTool(name: string, input: any, admin: any, userId: string)
   if (name === "add_grocery_item") {
     // Find or create active grocery list
     const { data: lists } = await admin.from("grocery_lists")
-      .select("id").eq("user_id", userId).eq("status", "active").limit(1)
+      .select("id").eq("user_id", userId).eq("archived", false).limit(1)
     let listId: string
     if (lists && lists.length > 0) {
       listId = lists[0].id
     } else {
       const { data: newList, error: listErr } = await admin.from("grocery_lists")
-        .insert({ user_id: userId, status: "active" }).select("id").single()
+        .insert({ user_id: userId, archived: false }).select("id").single()
       if (listErr) throw new Error("grocery list create failed: " + listErr.message)
       listId = newList.id
     }
     const rows = (input.items as any[]).map((item: any) => ({
       list_id:  listId,
+      user_id:  userId,
       name:     item.name,
       quantity: item.quantity || null,
       checked:  false,
+      added_by: "ava",
     }))
     const { error } = await admin.from("grocery_items").insert(rows)
     if (error) throw new Error("grocery insert failed: " + error.message)
@@ -149,10 +183,15 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS })
     }
 
-    const { message, conversationId } = await req.json()
+    const { message, conversationId, timezone, timezoneOffsetMinutes } = await req.json()
     if (!message || !conversationId) {
       return new Response(JSON.stringify({ error: "message and conversationId required" }), { status: 400, headers: CORS })
     }
+
+    // Resolve UTC offset: prefer IANA name (handles DST correctly), fall back to numeric, then UTC
+    const resolvedOffset: number = timezone
+      ? getOffsetMinutesFromTz(timezone)
+      : (typeof timezoneOffsetMinutes === "number" ? timezoneOffsetMinutes : 0)
 
     // ── Load user context in parallel ────────────────────────────────────
     const [profileRes, subscriptionRes, messagesRes, memoriesRes] = await Promise.all([
@@ -178,7 +217,7 @@ serve(async (req: Request) => {
                   (subscription?.status === "active" || subscription?.status === "trial")
     const model = isPro ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001"
 
-    const systemPrompt = buildSystemPrompt(profile, memories)
+    const systemPrompt = buildSystemPrompt(profile, memories, timezone, resolvedOffset)
 
     // ── Ensure conversation exists ───────────────────────────────────────
     await admin.from("conversations").upsert({
@@ -258,7 +297,7 @@ serve(async (req: Request) => {
 
               let resultText = ""
               try {
-                resultText = await executeTool(blk.name, toolInput, admin, user.id)
+                resultText = await executeTool(blk.name, toolInput, admin, user.id, resolvedOffset)
                 toolsExecuted.push(blk.name)
               } catch (e) {
                 resultText = "Error: " + String(e)
@@ -370,7 +409,7 @@ function extractMemoriesBackground(conversationId: string, token: string) {
 
 // ── System prompt builder ─────────────────────────────────────────────────────
 
-function buildSystemPrompt(profile: any, memories: any[]): string {
+function buildSystemPrompt(profile: any, memories: any[], timezone: string | undefined, resolvedOffset: number): string {
   const family  = profile?.family_members || []
   const partner = family.find((m: any) => m.relationship === "partner")
   const kids    = family.filter((m: any) => m.relationship === "child")
@@ -390,7 +429,16 @@ function buildSystemPrompt(profile: any, memories: any[]): string {
   const name       = profile?.name || "you"
   const workStatus = profile?.work_status?.replace(/_/g, " ") || ""
   const loadAreas  = profile?.mental_load_areas?.join(", ") || ""
-  const today      = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric" })
+
+  const tz = timezone || "UTC"
+  const absH = Math.floor(Math.abs(resolvedOffset) / 60)
+  const absM = Math.abs(resolvedOffset) % 60
+  const sign = resolvedOffset >= 0 ? "+" : "-"
+  const offsetStr = sign + String(absH).padStart(2, "0") + ":" + String(absM).padStart(2, "0")
+  const exampleDate = new Date().toLocaleDateString("en-US", { year: "numeric", month: "2-digit", day: "2-digit", timeZone: tz }).replace(/(\d+)\/(\d+)\/(\d+)/, "$3-$1-$2")
+  const isoExample = exampleDate + "T14:00:00" + offsetStr
+
+  const today = new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric", year: "numeric", timeZone: tz })
 
   const lines = [
     "You are Ava, " + name + "'s warm, brilliant personal assistant. You are the most organised best friend she has ever had: you remember everything, judge nothing, and always have her back.",
@@ -416,11 +464,13 @@ function buildSystemPrompt(profile: any, memories: any[]): string {
     "You have tools to actually add events to the calendar, items to the grocery list, and tasks to the to-do list.",
     "When the user asks you to add something, USE THE TOOL - do not just say you will do it.",
     "After using a tool, confirm briefly what you did in a warm, natural way.",
+    "IMPORTANT: Always use the user's local time when setting starts_at and ends_at. Include the UTC offset in the ISO 8601 string (e.g. " + isoExample + "). Never use UTC (Z suffix) unless the user explicitly says UTC.",
     "",
     "## What you can help with",
     "Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, and just being there.",
     "",
     "Today's date: " + today,
+    "User's timezone: " + tz + " (UTC" + offsetStr + ")",
   ]
 
   return lines.filter((l) => l !== null && l !== undefined).join("\n")
