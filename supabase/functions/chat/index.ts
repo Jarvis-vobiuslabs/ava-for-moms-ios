@@ -72,6 +72,14 @@ serve(async (req: Request) => {
                   (subscription?.status === "active" || subscription?.status === "trial")
     const model = isPro ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001"
 
+    // ── Ensure conversation row exists (iOS may fail to create it silently) ─
+    await admin.from("conversations").upsert({
+      id: conversationId,
+      user_id: user.id,
+      title: "Chat",
+      last_message_at: new Date().toISOString(),
+    }, { onConflict: "id", ignoreDuplicates: false })
+
     // ── Save user message ────────────────────────────────────────────────
     await admin.from("messages").insert({
       conversation_id: conversationId,

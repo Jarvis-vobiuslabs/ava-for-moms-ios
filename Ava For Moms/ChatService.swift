@@ -112,14 +112,14 @@ final class ChatService {
             return first.id
         }
 
-        // Create new conversation
+        // Create new conversation (double-try? matches Supabase Swift SDK throwing pattern)
         let newId = UUID()
-        _ = try? await supabase.from("conversations").insert([
+        _ = try? await (try? supabase.from("conversations").insert([
             "id": AnyJSON.string(newId.uuidString),
             "user_id": AnyJSON.string(userId.uuidString),
             "title": AnyJSON.string("Chat"),
             "last_message_at": AnyJSON.string(ISO8601DateFormatter().string(from: Date())),
-        ] as [String: AnyJSON], returning: .minimal).execute()
+        ] as [String: AnyJSON], returning: .minimal))?.execute()
 
         activeConversationId = newId
         return newId
