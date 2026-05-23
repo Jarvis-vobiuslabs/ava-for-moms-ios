@@ -52,11 +52,13 @@ final class CalendarStore {
         let weekEnd = Calendar.current.date(byAdding: .day, value: 7, to: weekStart) ?? weekStart
         var merged: [AvaCalendarEvent] = []
 
-        // 1. EventKit events
+        // 1. EventKit events (skip ones we wrote ourselves to avoid duplicates)
         if calendarAccessGranted {
+            let ourEkIds = createdEkEventIds
             let predicate = ekStore.predicateForEvents(withStart: weekStart, end: weekEnd, calendars: nil)
             let ekEvents = ekStore.events(matching: predicate)
             for ek in ekEvents {
+                guard let ekId = ek.eventIdentifier, !ourEkIds.contains(ekId) else { continue }
                 merged.append(AvaCalendarEvent(
                     id: UUID(),
                     title: ek.title ?? "Event",
@@ -65,7 +67,7 @@ final class CalendarStore {
                     endsAt: ek.endDate,
                     color: Color(cgColor: ek.calendar.cgColor),
                     source: .eventKit,
-                    ekEventID: ek.eventIdentifier
+                    ekEventID: ekId
                 ))
             }
         }
@@ -110,6 +112,9 @@ final class CalendarStore {
                     do {
                         try ekStore.save(ek, span: .thisEvent)
                         markSyncedNativeId(row.id)
+                        if let ekId = ek.eventIdentifier, !ekId.isEmpty {
+                            markCreatedEkEventId(ekId)
+                        }
                     } catch {}
                 }
             }
@@ -186,9 +191,13 @@ final class CalendarStore {
             ek.startDate = startsAt
             ek.endDate = endsAt
             ek.calendar = defaultCal
-            if (try? ekStore.save(ek, span: .thisEvent)) != nil {
+            do {
+                try ekStore.save(ek, span: .thisEvent)
                 markSyncedNativeId(newId)
-            }
+                if let ekId = ek.eventIdentifier, !ekId.isEmpty {
+                    markCreatedEkEventId(ekId)
+                }
+            } catch {}
         }
     }
 
@@ -202,6 +211,16 @@ final class CalendarStore {
         var ids = syncedAvaIds
         ids.insert(id.uuidString)
         UserDefaults.standard.set(Array(ids), forKey: "ava.syncedNativeIds")
+    }
+
+    private var createdEkEventIds: Set<String> {
+        Set(UserDefaults.standard.stringArray(forKey: "ava.createdEkEventIds") ?? [])
+    }
+
+    private func markCreatedEkEventId(_ ekId: String) {
+        var ids = createdEkEventIds
+        ids.insert(ekId)
+        UserDefaults.standard.set(Array(ids), forKey: "ava.createdEkEventIds")
     }
 
     // MARK: - Delete event

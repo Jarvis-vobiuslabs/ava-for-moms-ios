@@ -1,5 +1,6 @@
 import SwiftUI
 import Supabase
+import StoreKit
 
 struct AccountView: View {
     @Environment(AuthManager.self) private var auth
@@ -14,6 +15,7 @@ struct AccountView: View {
     @State private var showMemories = false
     @State private var showEditProfile = false
     @State private var showFamily = false
+    @State private var showManageSubscriptions = false
     @State private var deleteError: String?
 
     var body: some View {
@@ -65,7 +67,7 @@ struct AccountView: View {
                     // ── Support ────────────────────────────────────────────
                     sectionHeader("SUPPORT")
                     settingsCard {
-                        Link(destination: URL(string: "mailto:support@avaformoms.com")!) {
+                        Link(destination: URL(string: "mailto:labs@vobius.com")!) {
                             rowLabel(icon: "envelope", title: "Contact Support")
                         }
                         .buttonStyle(.plain)
@@ -74,6 +76,14 @@ struct AccountView: View {
                             rowLabel(icon: "questionmark.circle", title: "FAQ")
                         }
                         .buttonStyle(.plain)
+                    }
+
+                    // ── Subscription ───────────────────────────────────────
+                    sectionHeader("SUBSCRIPTION")
+                    settingsCard {
+                        row(icon: "creditcard", title: "Manage Subscription") {
+                            showManageSubscriptions = true
+                        }
                     }
 
                     // ── Account ────────────────────────────────────────────
@@ -160,6 +170,7 @@ struct AccountView: View {
         .sheet(isPresented: $showMemories)    { MemoriesView().environment(auth) }
         .sheet(isPresented: $showEditProfile) { ProfileEditView().environment(auth) }
         .sheet(isPresented: $showFamily)      { FamilyManagementView().environment(auth) }
+        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .overlay {
             if isDeleting {
                 ZStack {
@@ -198,7 +209,7 @@ struct AccountView: View {
 
             let (_, response) = try await URLSession.shared.data(for: request)
             guard (response as? HTTPURLResponse)?.statusCode == 200 else {
-                throw NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Deletion failed. Contact support@avaformoms.com"])
+                throw NSError(domain: "", code: 0, userInfo: [NSLocalizedDescriptionKey: "Deletion failed. Contact labs@vobius.com"])
             }
 
             await auth.signOut()
