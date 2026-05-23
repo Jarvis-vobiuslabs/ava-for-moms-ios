@@ -5,6 +5,7 @@ import Supabase
 // Uses server-sent events (SSE) for streaming responses.
 
 @Observable
+@MainActor
 final class ChatService {
 
     var messages: [ChatMessage] = []

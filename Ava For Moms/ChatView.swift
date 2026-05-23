@@ -5,7 +5,13 @@ struct ChatView: View {
     @Environment(AuthManager.self) private var auth
     @State private var chatService = ChatService()
     @State private var inputText = ""
+    @State private var keyboardHeight: CGFloat = 0
     @FocusState private var inputFocused: Bool
+
+    // Bottom padding: sits above keyboard when open, above tab bar when closed
+    private var composerBottomPad: CGFloat {
+        keyboardHeight > 0 ? keyboardHeight + 8 : 112
+    }
 
     var body: some View {
         ZStack {
@@ -15,6 +21,17 @@ struct ChatView: View {
                 messageList
                 composer
             }
+        }
+        // We track keyboard ourselves — prevent SwiftUI double-adjusting
+        .ignoresSafeArea(.keyboard)
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillShowNotification)) { notif in
+            guard let frame = notif.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect else { return }
+            withAnimation(.easeOut(duration: 0.28)) { keyboardHeight = frame.height }
+        }
+        .onReceive(NotificationCenter.default.publisher(
+            for: UIResponder.keyboardWillHideNotification)) { _ in
+            withAnimation(.easeOut(duration: 0.28)) { keyboardHeight = 0 }
         }
         .task {
             if let userId = auth.currentUserId {
@@ -41,9 +58,11 @@ struct ChatView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("Ava").font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
                 HStack(spacing: 4) {
-                    Circle().fill(chatService.isTyping ? AvaTheme.terracotta : AvaTheme.sageDeep)
+                    Circle()
+                        .fill(chatService.isTyping ? AvaTheme.terracotta : AvaTheme.sageDeep)
                         .frame(width: 6, height: 6)
-                        .animation(.easeInOut(duration: 0.5).repeatForever(), value: chatService.isTyping)
+                        .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true),
+                                   value: chatService.isTyping)
                     Text(chatService.isTyping ? "typing…" : "your assistant")
                         .font(AvaTheme.font(11, weight: .bold))
                         .foregroundStyle(chatService.isTyping ? AvaTheme.terracotta : AvaTheme.sageDeep)
@@ -52,6 +71,7 @@ struct ChatView: View {
             Spacer()
         }
         .padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 14)
+        .background(AvaTheme.bg)
     }
 
     // MARK: - Messages
@@ -59,29 +79,37 @@ struct ChatView: View {
     private var messageList: some View {
         ScrollViewReader { proxy in
             ScrollView {
-                VStack(spacing: 10) {
+                LazyVStack(spacing: 10) {
                     if chatService.messages.isEmpty && !chatService.isTyping {
                         emptyState
                     }
-
                     ForEach(chatService.messages) { msg in
-                        LiveMessageBubble(message: msg)
-                            .id(msg.id)
+                        LiveMessageBubble(message: msg).id(msg.id)
                     }
-
                     if chatService.isTyping && chatService.messages.last?.isAva == false {
                         typingIndicator
                     }
-
+                    // Error banner
+                    if let err = chatService.errorMessage {
+                        Text(err)
+                            .font(AvaTheme.font(13, weight: .medium))
+                            .foregroundStyle(.white)
+                            .padding(.horizontal, 16).padding(.vertical, 10)
+                            .background(Capsule().fill(AvaTheme.terracotta.opacity(0.85)))
+                            .padding(.horizontal, 18)
+                    }
                     Color.clear.frame(height: 1).id("bottom")
                 }
                 .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 20)
             }
             .onChange(of: chatService.messages.count) { _, _ in
-                withAnimation { proxy.scrollTo("bottom") }
+                proxy.scrollTo("bottom", anchor: .bottom)
             }
             .onChange(of: chatService.messages.last?.content) { _, _ in
-                proxy.scrollTo("bottom")
+                proxy.scrollTo("bottom", anchor: .bottom)
+            }
+            .onChange(of: keyboardHeight) { _, h in
+                if h > 0 { proxy.scrollTo("bottom", anchor: .bottom) }
             }
         }
     }
@@ -106,8 +134,8 @@ struct ChatView: View {
             ForEach(0..<3, id: \.self) { i in
                 Circle().fill(AvaTheme.inkSoft).frame(width: 7, height: 7)
                     .offset(y: chatService.isTyping ? -4 : 0)
-                    .animation(.easeInOut(duration: 0.5).repeatForever().delay(Double(i) * 0.15),
-                               value: chatService.isTyping)
+                    .animation(.easeInOut(duration: 0.5).repeatForever(autoreverses: true)
+                        .delay(Double(i) * 0.15), value: chatService.isTyping)
             }
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
@@ -121,41 +149,58 @@ struct ChatView: View {
     // MARK: - Composer
 
     private var composer: some View {
-        HStack(spacing: 8) {
+        HStack(alignment: .bottom, spacing: 8) {
             TextField("Message Ava…", text: $inputText, axis: .vertical)
-                .font(AvaTheme.font(14.5, weight: .medium))
+                .font(AvaTheme.font(15, weight: .medium))
                 .foregroundStyle(AvaTheme.ink)
+                .tint(AvaTheme.terracotta)
                 .lineLimit(1...5)
-                .padding(.leading, 18).padding(.vertical, 14)
+                .padding(.leading, 16).padding(.vertical, 13)
                 .focused($inputFocused)
-                .submitLabel(.send)
-                .onSubmit { sendMessage() }
 
             Button(action: sendMessage) {
-                Circle().fill(inputText.isEmpty ? AnyShapeStyle(AvaTheme.line) : AnyShapeStyle(AvaTheme.blushTerracotta))
-                    .frame(width: 40, height: 40)
-                    .overlay(Image(systemName: inputText.isEmpty ? "mic.fill" : "arrow.up")
-                        .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(inputText.isEmpty ? AvaTheme.inkSoft : .white))
-                    .animation(.easeInOut(duration: 0.15), value: inputText.isEmpty)
-                    .shadow(color: inputText.isEmpty ? .clear : AvaTheme.terracotta.opacity(0.4),
-                            radius: 6, x: 0, y: 3)
+                Circle()
+                    .fill(canSend
+                          ? AnyShapeStyle(AvaTheme.blushTerracotta)
+                          : AnyShapeStyle(AvaTheme.line))
+                    .frame(width: 38, height: 38)
+                    .overlay(
+                        Image(systemName: "arrow.up")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(canSend ? .white : AvaTheme.inkSoft)
+                    )
+                    .animation(.easeInOut(duration: 0.15), value: canSend)
             }
             .buttonStyle(.plain)
-            .padding(.trailing, 6)
-            .disabled(chatService.isTyping)
+            .padding(.trailing, 6).padding(.bottom, 7)
+            .disabled(!canSend)
         }
-        .background(AvaTheme.cream)
-        .clipShape(Capsule())
-        .shadow(color: AvaTheme.ink.opacity(0.08), radius: 8, x: 0, y: 4)
+        .background(
+            RoundedRectangle(cornerRadius: 22)
+                .fill(AvaTheme.cream)
+                .shadow(color: AvaTheme.ink.opacity(0.10), radius: 8, x: 0, y: 3)
+        )
+        .overlay(
+            RoundedRectangle(cornerRadius: 22)
+                .stroke(AvaTheme.terracotta.opacity(inputFocused ? 0.4 : 0), lineWidth: 1.5)
+        )
         .padding(.horizontal, 14)
-        .padding(.bottom, inputFocused ? 8 : 120)
-        .animation(.easeInOut(duration: 0.25), value: inputFocused)
+        .padding(.bottom, composerBottomPad)
     }
+
+    private var canSend: Bool {
+        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !chatService.isTyping
+    }
+
+    // MARK: - Send
 
     private func sendMessage() {
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !chatService.isTyping, let userId = auth.currentUserId else { return }
+        guard !text.isEmpty, !chatService.isTyping else { return }
+        guard let userId = auth.currentUserId else {
+            chatService.errorMessage = "Not signed in — please restart the app."
+            return
+        }
         inputText = ""
         _Concurrency.Task { await chatService.send(text, userId: userId) }
     }

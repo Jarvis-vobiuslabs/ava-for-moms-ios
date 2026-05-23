@@ -18,7 +18,7 @@ struct MainTabView: View {
             AvaTabBar(selected: $selectedTab)
                 .padding(.bottom, 20)
         }
-        .ignoresSafeArea(.container, edges: .all)
+        .ignoresSafeArea()
     }
 
     @ViewBuilder
