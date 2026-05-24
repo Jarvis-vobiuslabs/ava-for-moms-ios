@@ -155,6 +155,12 @@ final class AuthManager {
             } else {
                 try await supabase.auth.verifyOTP(email: email, token: token, type: .email)
             }
+            // Auth listener fires asynchronously — sync-update here so finishAuth()
+            // can call saveOnboardingData before the listener task gets a turn.
+            if let user = supabase.auth.currentUser {
+                currentUserId = user.id
+                state = .authenticated
+            }
         } catch {
             errorMessage = friendlyError(error)
         }
