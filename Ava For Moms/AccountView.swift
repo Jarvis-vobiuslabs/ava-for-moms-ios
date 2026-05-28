@@ -10,8 +10,6 @@ struct AccountView: View {
     @State private var showDeleteConfirm = false
     @State private var showDeleteFinal = false
     @State private var isDeleting = false
-    @State private var showTerms = false
-    @State private var showPrivacy = false
     @State private var showMemories = false
     @State private var showEditProfile = false
     @State private var showFamily = false
@@ -59,9 +57,15 @@ struct AccountView: View {
                     // ── Legal ──────────────────────────────────────────────
                     sectionHeader("LEGAL")
                     settingsCard {
-                        row(icon: "doc.text", title: "Terms of Service") { showTerms = true }
+                        Link(destination: URL(string: "https://avaformoms.com/terms")!) {
+                            rowLabel(icon: "doc.text", title: "Terms of Service")
+                        }
+                        .buttonStyle(.plain)
                         Divider().padding(.leading, 54).tint(AvaTheme.line)
-                        row(icon: "lock.shield", title: "Privacy Policy") { showPrivacy = true }
+                        Link(destination: URL(string: "https://avaformoms.com/privacy")!) {
+                            rowLabel(icon: "lock.shield", title: "Privacy Policy")
+                        }
+                        .buttonStyle(.plain)
                     }
 
                     // ── Support ────────────────────────────────────────────
@@ -165,8 +169,6 @@ struct AccountView: View {
         } message: {
             Text("This cannot be undone.")
         }
-        .sheet(isPresented: $showTerms)       { LegalView(type: .terms) }
-        .sheet(isPresented: $showPrivacy)     { LegalView(type: .privacy) }
         .sheet(isPresented: $showMemories)    { MemoriesView().environment(auth) }
         .sheet(isPresented: $showEditProfile) { ProfileEditView().environment(auth) }
         .sheet(isPresented: $showFamily)      { FamilyManagementView().environment(auth) }

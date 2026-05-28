@@ -9,8 +9,7 @@ struct PaywallView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(SubscriptionManager.self) private var store
     @State private var isAnnual = true
-    @State private var showTerms = false
-    @State private var showPrivacy = false
+    @Environment(\.openURL) private var openURL
 
     // Real products from StoreKit (shows local currency + correct prices)
     private var standardProduct: Product? { isAnnual ? store.standardAnnual : store.standardMonthly }
@@ -106,8 +105,6 @@ struct PaywallView: View {
             }
         }
         .background(AvaTheme.bg.ignoresSafeArea())
-        .sheet(isPresented: $showTerms)   { LegalView(type: .terms) }
-        .sheet(isPresented: $showPrivacy) { LegalView(type: .privacy) }
         .task { await store.load() }
     }
 
@@ -257,8 +254,8 @@ struct PaywallView: View {
 
     private func footerLink(_ label: String) -> some View {
         Button {
-            if label == "Terms"            { showTerms   = true }
-            if label == "Privacy"          { showPrivacy = true }
+            if label == "Terms"   { openURL(URL(string: "https://avaformoms.com/terms")!) }
+            if label == "Privacy" { openURL(URL(string: "https://avaformoms.com/privacy")!) }
             if label == "Restore purchases" {
                 guard let userId = auth.currentUserId else { return }
                 _Concurrency.Task { await store.restore(userId: userId) }
