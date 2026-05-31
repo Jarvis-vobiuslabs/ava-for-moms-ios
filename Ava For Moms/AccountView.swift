@@ -13,7 +13,7 @@ struct AccountView: View {
     @State private var showMemories = false
     @State private var showEditProfile = false
     @State private var showFamily = false
-    @State private var showManageSubscriptions = false
+    @Environment(\.openURL) private var openURL
     @State private var deleteError: String?
 
     var body: some View {
@@ -86,7 +86,7 @@ struct AccountView: View {
                     sectionHeader("SUBSCRIPTION")
                     settingsCard {
                         row(icon: "creditcard", title: "Manage Subscription") {
-                            showManageSubscriptions = true
+                            openURL(URL(string: "itms-apps://apps.apple.com/account/subscriptions")!)
                         }
                     }
 
@@ -172,7 +172,6 @@ struct AccountView: View {
         .sheet(isPresented: $showMemories)    { MemoriesView().environment(auth) }
         .sheet(isPresented: $showEditProfile) { ProfileEditView().environment(auth) }
         .sheet(isPresented: $showFamily)      { FamilyManagementView().environment(auth) }
-        .manageSubscriptionsSheet(isPresented: $showManageSubscriptions)
         .overlay {
             if isDeleting {
                 ZStack {
