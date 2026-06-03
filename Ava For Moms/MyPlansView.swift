@@ -164,16 +164,23 @@ struct MyPlansView: View {
             }
             .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 14)
 
-            // Price
-            HStack(alignment: .firstTextBaseline, spacing: 6) {
+            // Price — billed amount is always the dominant figure (App Store guideline 3.1.2c)
+            VStack(alignment: .leading, spacing: 4) {
                 if let product {
-                    Text(isAnnual ? monthlyEquivalent(product: product) : product.displayPrice)
-                        .font(AvaTheme.font(28, weight: .heavy))
-                        .foregroundStyle(isPro ? .white : AvaTheme.ink)
-                        .tracking(-0.5)
-                    Text(isAnnual ? "per month, billed \(product.displayPrice)/yr" : "per month")
-                        .font(AvaTheme.font(12, weight: .medium))
-                        .foregroundStyle(isPro ? .white.opacity(0.75) : AvaTheme.inkMute)
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(product.displayPrice)
+                            .font(AvaTheme.font(28, weight: .heavy))
+                            .foregroundStyle(isPro ? .white : AvaTheme.ink)
+                            .tracking(-0.5)
+                        Text(isAnnual ? "/ year" : "/ month")
+                            .font(AvaTheme.font(14, weight: .semibold))
+                            .foregroundStyle(isPro ? .white.opacity(0.75) : AvaTheme.inkMute)
+                    }
+                    if isAnnual {
+                        Text("\(monthlyEquivalent(product: product)) / month")
+                            .font(AvaTheme.font(12, weight: .medium))
+                            .foregroundStyle(isPro ? .white.opacity(0.65) : AvaTheme.inkSoft)
+                    }
                 } else {
                     RoundedRectangle(cornerRadius: 6)
                         .fill(isPro ? .white.opacity(0.3) : AvaTheme.bgDeep)
