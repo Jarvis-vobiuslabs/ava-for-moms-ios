@@ -8,6 +8,8 @@ struct MainTabView: View {
     @State private var notesStore    = NotesStore()
     @Environment(SubscriptionManager.self) private var store
 
+    private var isIPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
+
     var body: some View {
         ZStack(alignment: .bottom) {
             tabContent
@@ -18,9 +20,13 @@ struct MainTabView: View {
                 .environment(notesStore)
 
             AvaTabBar(selected: $selectedTab)
-                .padding(.bottom, 20)
+                .padding(.bottom, isIPad ? 8 : 20)
         }
-        .ignoresSafeArea()
+        // On iPad, respect safe areas so the ZStack + tab bar don't sit over
+        // the home indicator zone (which blocks system-level touch handling).
+        // Each content view's background already uses .ignoresSafeArea() so
+        // the visual appearance is unchanged. iPhone keeps the original layout.
+        .ignoresSafeArea(edges: isIPad ? [] : .all)
     }
 
     @ViewBuilder
