@@ -1,6 +1,6 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
-import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.24.0"
+import Anthropic from "https://esm.sh/@anthropic-ai/sdk@0.39.0"
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -242,7 +242,7 @@ serve(async (req: Request) => {
 
     const isPro = subscription?.tier === "pro" &&
                   (subscription?.status === "active" || subscription?.status === "trial")
-    const model = isPro ? "claude-sonnet-4-6" : "claude-haiku-4-5-20251001"
+    const model = isPro ? "claude-sonnet-5" : "claude-haiku-4-5"
 
     const isFirstMessage = history.length === 0
     const systemPrompt = buildSystemPrompt(profile, memories, notes, timezone, resolvedOffset, isFirstMessage)
@@ -278,13 +278,16 @@ serve(async (req: Request) => {
         try {
           // ── Pass 1: initial call with tools ──────────────────────────
           const stream1 = await anthropic.messages.create({
+            // Sonnet 5 runs adaptive thinking by default when `thinking` is omitted —
+            // disable it so chat stays low-latency and behaves like Sonnet 4.6 did.
+            thinking: { type: "disabled" },
             model,
-            max_tokens: 1024,
+            max_tokens: 2048,
             system:  [{ type: "text", text: systemPrompt }] as any,
             tools:   TOOLS as any,
             messages: history,
             stream:  true,
-          })
+          } as any)
 
           // Collect content blocks and stream text
           const pass1Content: any[] = []
@@ -355,12 +358,13 @@ serve(async (req: Request) => {
             const toolResultMsg = { role: "user" as const, content: toolResultContent }
 
             const stream2 = await anthropic.messages.create({
+              thinking: { type: "disabled" },
               model,
-              max_tokens: 512,
+              max_tokens: 1024,
               system:   [{ type: "text", text: systemPrompt }] as any,
               messages: [...history, assistantMsg, toolResultMsg],
               stream:   true,
-            })
+            } as any)
 
             fullResponse = "" // replace with the spoken confirmation
             for await (const event of stream2 as any) {

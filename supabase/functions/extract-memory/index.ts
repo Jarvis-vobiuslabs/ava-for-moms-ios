@@ -85,7 +85,7 @@ JSON array (empty array [] if nothing new to remember):`,
     )
 
     if (valid.length > 0) {
-      await admin.from("ava_memories").upsert(
+      const { error: upsertError } = await admin.from("ava_memories").upsert(
         valid.map((m: any) => ({
           user_id: user.id,
           key: m.key,
@@ -95,6 +95,13 @@ JSON array (empty array [] if nothing new to remember):`,
         })),
         { onConflict: "user_id,key" }
       )
+      if (upsertError) {
+        console.error("ava_memories upsert failed:", upsertError.message)
+        return new Response(
+          JSON.stringify({ extracted: 0, error: upsertError.message }),
+          { status: 500, headers: { ...CORS, "Content-Type": "application/json" } }
+        )
+      }
     }
 
     return new Response(JSON.stringify({ extracted: valid.length }), {
