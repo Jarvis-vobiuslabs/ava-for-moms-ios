@@ -43,6 +43,12 @@ final class CalendarStore {
         }
     }
 
+    // Sync the granted flag from the current authorization status without
+    // triggering the system permission prompt (safe to call at launch).
+    func refreshAccessStatus() {
+        calendarAccessGranted = EKEventStore.authorizationStatus(for: .event) == .fullAccess
+    }
+
     // MARK: - Load events for a given week
 
     func load(userId: UUID, weekStart: Date) async {

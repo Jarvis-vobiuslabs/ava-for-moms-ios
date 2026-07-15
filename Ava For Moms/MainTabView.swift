@@ -7,6 +7,7 @@ struct MainTabView: View {
     @State private var calendarStore = CalendarStore()
     @State private var notesStore    = NotesStore()
     @Environment(SubscriptionManager.self) private var store
+    @Environment(AuthManager.self) private var auth
 
     private var isIPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
@@ -27,6 +28,17 @@ struct MainTabView: View {
         // Each content view's background already uses .ignoresSafeArea() so
         // the visual appearance is unchanged. iPhone keeps the original layout.
         .ignoresSafeArea(edges: isIPad ? [] : .all)
+        // Load everything up front so Home has data on first launch —
+        // previously only the Tasks/Calendar tabs loaded their own stores,
+        // leaving the Today page empty until another tab was visited.
+        .task(id: auth.currentUserId) {
+            guard let userId = auth.currentUserId else { return }
+            calendarStore.refreshAccessStatus()
+            _Concurrency.Task { await taskStore.load(userId: userId) }
+            _Concurrency.Task { await calendarStore.load(userId: userId, weekStart: Date().startOfWeek) }
+            _Concurrency.Task { await groceryStore.load(userId: userId) }
+            _Concurrency.Task { await notesStore.load(userId: userId) }
+        }
     }
 
     @ViewBuilder
