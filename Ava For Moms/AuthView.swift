@@ -53,6 +53,7 @@ struct AuthView: View {
                                 }
                                 .foregroundStyle(AvaTheme.inkMute)
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
                             .padding(.bottom, 8)
                         }
@@ -104,6 +105,7 @@ struct AuthView: View {
                 .foregroundStyle(.white).frame(maxWidth: .infinity).padding(.vertical, 16)
                 .background(RoundedRectangle(cornerRadius: 14).fill(AvaTheme.ink))
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).padding(.horizontal, 28)
 
             // Divider
@@ -168,6 +170,7 @@ struct AuthView: View {
                     : AnyShapeStyle(AvaTheme.line)))
                 .animation(.easeInOut(duration: 0.2), value: emailValid)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .disabled((usePassword ? !(emailValid && passwordValid) : !emailValid) || auth.isLoading)
             .padding(.horizontal, 28).padding(.top, 20)
@@ -186,6 +189,7 @@ struct AuthView: View {
                     .font(AvaTheme.font(14, weight: .semibold))
                     .foregroundStyle(AvaTheme.terracotta)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).padding(.top, 14).padding(.bottom, 50)
             .frame(maxWidth: .infinity)
         }
@@ -232,6 +236,7 @@ struct AuthView: View {
                     : AnyShapeStyle(AvaTheme.line)))
                 .animation(.easeInOut(duration: 0.2), value: otpValid)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).disabled(!otpValid || auth.isLoading)
             .padding(.horizontal, 28).padding(.top, 20)
 
@@ -242,6 +247,7 @@ struct AuthView: View {
                         .font(AvaTheme.font(14, weight: .semibold))
                         .foregroundStyle(AvaTheme.terracotta)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain).padding(.top, 16)
                 .frame(maxWidth: .infinity)
             }

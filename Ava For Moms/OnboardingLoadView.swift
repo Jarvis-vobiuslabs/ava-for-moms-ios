@@ -51,6 +51,7 @@ struct OnboardingLoadView: View {
                     )
                     .animation(.easeInOut(duration: 0.2), value: canContinue)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .disabled(!canContinue)
             .padding(.horizontal, 28)
@@ -91,6 +92,7 @@ struct OnboardingLoadView: View {
                     .fill(selected ? AvaTheme.terracotta : AvaTheme.cream)
             )
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .animation(.spring(duration: 0.2), value: selected)
     }
@@ -105,6 +107,7 @@ struct OnboardingLoadView: View {
             }
             .foregroundStyle(AvaTheme.inkMute)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 14)

@@ -45,6 +45,7 @@ struct GroceryView: View {
                                     .overlay(Image(systemName: "arrow.up")
                                         .font(.system(size: 13, weight: .bold)).foregroundStyle(.white))
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
                             .transition(.scale.combined(with: .opacity))
                         }
@@ -86,6 +87,7 @@ struct GroceryView: View {
                             .frame(maxWidth: .infinity).padding(.vertical, 14)
                             .overlay(RoundedRectangle(cornerRadius: 14).stroke(AvaTheme.line, lineWidth: 1.5))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain).padding(.horizontal, 18).padding(.top, 8)
                     }
 
@@ -129,6 +131,7 @@ struct GroceryView: View {
                     }
                 }
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 2) {

@@ -34,6 +34,7 @@ struct TasksView: View {
                                     .font(.system(size: 16, weight: .bold)).foregroundStyle(.white))
                                 .shadow(color: AvaTheme.terracotta.opacity(0.35), radius: 6, x: 0, y: 3)
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 22).padding(.top, 60).padding(.bottom, 14)
@@ -120,6 +121,7 @@ struct TasksView: View {
                         .padding(14)
                         .overlay(RoundedRectangle(cornerRadius: 18).stroke(AvaTheme.line, style: StrokeStyle(lineWidth: 2, dash: [6])))
                     }
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain).padding(.horizontal, 18).padding(.top, 14)
 
                     Spacer().frame(height: 130)
@@ -132,6 +134,7 @@ struct TasksView: View {
                     .overlay(Image(systemName: "face.smiling").font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
                     .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 12, x: 0, y: 8)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).padding(.trailing, 18).padding(.bottom, 100)
         }
         .sheet(isPresented: $showAddTask) {
@@ -156,6 +159,7 @@ struct TasksView: View {
                 Circle().stroke(isUrgent ? AvaTheme.terracotta : AvaTheme.inkSoft, lineWidth: 2)
                     .frame(width: 22, height: 22)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
 
             VStack(alignment: .leading, spacing: 3) {
@@ -187,6 +191,7 @@ struct TasksView: View {
                 Circle().fill(AvaTheme.sage).frame(width: 22, height: 22)
                     .overlay(Image(systemName: "checkmark").font(.system(size: 10, weight: .bold)).foregroundStyle(.white))
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
 
             Text(task.title).font(AvaTheme.font(14.5, weight: .semibold))

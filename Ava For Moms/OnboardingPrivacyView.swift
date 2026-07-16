@@ -58,6 +58,7 @@ struct OnboardingPrivacyView: View {
                     .background(Capsule().fill(AvaTheme.blushTerracotta))
                     .shadow(color: AvaTheme.terracotta.opacity(0.35), radius: 10, x: 0, y: 6)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .padding(.horizontal, 28)
             .padding(.bottom, 50)
@@ -119,6 +120,7 @@ struct OnboardingPrivacyView: View {
             }
             .foregroundStyle(AvaTheme.inkMute)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 14)

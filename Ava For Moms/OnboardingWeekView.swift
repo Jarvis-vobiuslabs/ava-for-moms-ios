@@ -42,6 +42,7 @@ struct OnboardingWeekView: View {
                     .padding(.vertical, 18)
                     .background(Capsule().fill(AvaTheme.blushTerracotta))
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .padding(.horizontal, 28)
             .padding(.bottom, 50)
@@ -85,6 +86,7 @@ struct OnboardingWeekView: View {
                     .stroke(selected ? AvaTheme.terracotta : Color.clear, lineWidth: 2)
             )
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .animation(.easeInOut(duration: 0.15), value: selected)
     }
@@ -176,6 +178,7 @@ struct OnboardingWeekView: View {
             }
             .foregroundStyle(AvaTheme.inkMute)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 14)

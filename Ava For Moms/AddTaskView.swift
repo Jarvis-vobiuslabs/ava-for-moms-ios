@@ -15,7 +15,7 @@ struct AddTaskView: View {
                 HStack {
                     Button("Cancel") { dismiss() }
                         .font(AvaTheme.font(16, weight: .semibold))
-                        .foregroundStyle(AvaTheme.terracotta).buttonStyle(.plain)
+                        .foregroundStyle(AvaTheme.terracotta).contentShape(Rectangle()).buttonStyle(.plain)
                     Spacer()
                     Text("New Task")
                         .font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
@@ -26,6 +26,7 @@ struct AddTaskView: View {
                     }
                     .font(AvaTheme.font(16, weight: .heavy))
                     .foregroundStyle(title.isEmpty ? AvaTheme.inkSoft : AvaTheme.terracotta)
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain).disabled(title.isEmpty)
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)
@@ -50,6 +51,7 @@ struct AddTaskView: View {
                                     ? (p == "urgent" ? AvaTheme.terracotta : AvaTheme.sage)
                                     : AvaTheme.cream))
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
                             .animation(.easeInOut(duration: 0.15), value: priority)
                         }

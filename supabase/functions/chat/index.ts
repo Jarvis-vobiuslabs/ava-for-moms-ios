@@ -14,16 +14,17 @@ const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! })
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "add_calendar_event",
-    description: "Add an event to the user's Ava calendar. Use this when the user asks Ava to schedule, book, or add something to their calendar.",
+    description: "Add an event to the user's Ava calendar. Use this when the user asks Ava to schedule, book, or add something to their calendar. If the user gives a day but no time, create an all-day event rather than asking for a time.",
     input_schema: {
       type: "object",
       properties: {
         title:     { type: "string", description: "Event title" },
-        starts_at: { type: "string", description: "Start time in ISO 8601 format, e.g. 2026-05-24T14:00:00Z" },
-        ends_at:   { type: "string", description: "End time in ISO 8601 format" },
+        starts_at: { type: "string", description: "Start time in ISO 8601 format, e.g. 2026-05-24T14:00:00Z. For all-day events use midnight, e.g. 2026-05-24T00:00:00" },
+        ends_at:   { type: "string", description: "Optional end time in ISO 8601 format. Defaults to one hour after start" },
+        all_day:   { type: "boolean", description: "True when the user gave a day but no specific time (birthdays, holidays, 'sometime tomorrow')" },
         detail:    { type: "string", description: "Optional notes or location" }
       },
-      required: ["title", "starts_at", "ends_at"]
+      required: ["title", "starts_at"]
     }
   },
   {
@@ -50,12 +51,13 @@ const TOOLS: Anthropic.Tool[] = [
   },
   {
     name: "add_task",
-    description: "Add a task or to-do item to the user's task list.",
+    description: "Add a task, to-do, or reminder to the user's task list. A time is never required — if the user says 'today' or gives no date at all, just add the task with due_date set to today.",
     input_schema: {
       type: "object",
       properties: {
         title:    { type: "string", description: "Task title" },
         priority: { type: "string", enum: ["normal", "urgent"], description: "Task priority" },
+        due_date: { type: "string", description: "Optional due date/time in ISO 8601 format. Date-only is fine, e.g. 2026-07-16. Default to today when the user doesn't say otherwise" },
         note:     { type: "string", description: "Optional note" }
       },
       required: ["title"]
@@ -111,15 +113,25 @@ function applyUserOffset(ts: string, offsetMinutes: number): string {
 
 async function executeTool(name: string, input: any, admin: any, userId: string, offsetMinutes: number): Promise<string> {
   if (name === "add_calendar_event") {
+    const startsAt = applyUserOffset(input.starts_at, offsetMinutes)
+    const allDay   = input.all_day === true
+    let endsAt: string
+    if (input.ends_at) {
+      endsAt = applyUserOffset(input.ends_at, offsetMinutes)
+    } else {
+      // Default: all-day events run to end of day, timed events run one hour
+      const hours = allDay ? 24 : 1
+      endsAt = new Date(new Date(startsAt).getTime() + hours * 3600_000).toISOString()
+    }
     const { error } = await admin.from("calendar_events").insert({
       user_id:   userId,
       title:     input.title,
       detail:    input.detail || null,
-      starts_at: applyUserOffset(input.starts_at, offsetMinutes),
-      ends_at:   applyUserOffset(input.ends_at, offsetMinutes),
+      starts_at: startsAt,
+      ends_at:   endsAt,
       color_hex: "#D46A47",
       source:    "ava",
-      all_day:   false,
+      all_day:   allDay,
     })
     if (error) throw new Error("calendar insert failed: " + error.message)
     return "Event added: " + input.title
@@ -152,11 +164,21 @@ async function executeTool(name: string, input: any, admin: any, userId: string,
   }
 
   if (name === "add_task") {
+    // Date-only due dates (e.g. "2026-07-16") get a local end-of-day time so
+    // "today" reminders stay due all day rather than expiring at midnight.
+    let dueDate: string | null = null
+    if (input.due_date) {
+      const bare = /^\d{4}-\d{2}-\d{2}$/.test(input.due_date)
+        ? input.due_date + "T20:00:00"
+        : input.due_date
+      dueDate = applyUserOffset(bare, offsetMinutes)
+    }
     const { error } = await admin.from("tasks").insert({
       user_id:   userId,
       title:     input.title,
       note:      input.note || null,
       priority:  input.priority || "normal",
+      due_date:  dueDate,
       completed: false,
     })
     if (error) throw new Error("task insert failed: " + error.message)
@@ -501,6 +523,7 @@ function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone
     "Use save_note when the user shares a password, PIN, important location, or anything they want to remember.",
     "After using a tool, confirm briefly what you did in a warm, natural way.",
     "IMPORTANT: Always use the user's local time when setting starts_at and ends_at. Include the UTC offset in the ISO 8601 string (e.g. " + isoExample + "). Never use UTC (Z suffix) unless the user explicitly says UTC.",
+    "NEVER refuse or ask for a time just because the user didn't give one. No date mentioned: add the task with due_date = today. A day but no time (birthday, 'sometime Friday'): create an all-day event. Only ask a follow-up question when the request is genuinely ambiguous about WHICH day.",
     "",
     "## What you can help with",
     "Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, and just being there.",

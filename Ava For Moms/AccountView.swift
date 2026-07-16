@@ -37,6 +37,7 @@ struct AccountView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(AvaTheme.inkMute))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 24).padding(.top, 60).padding(.bottom, 24)
@@ -61,11 +62,13 @@ struct AccountView: View {
                         Link(destination: URL(string: "https://avaformoms.com/terms")!) {
                             rowLabel(icon: "doc.text", title: "Terms of Service")
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                         Divider().padding(.leading, 54).tint(AvaTheme.line)
                         Link(destination: URL(string: "https://avaformoms.com/privacy")!) {
                             rowLabel(icon: "lock.shield", title: "Privacy Policy")
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
 
@@ -75,11 +78,13 @@ struct AccountView: View {
                         Link(destination: URL(string: "mailto:labs@vobius.com")!) {
                             rowLabel(icon: "envelope", title: "Contact Support")
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                         Divider().padding(.leading, 54).tint(AvaTheme.line)
                         Link(destination: URL(string: "https://avaformoms.com/faq")!) {
                             rowLabel(icon: "questionmark.circle", title: "FAQ")
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
 
@@ -129,6 +134,7 @@ struct AccountView: View {
                             .padding(16)
                             .background(RoundedRectangle(cornerRadius: 18).fill(AvaTheme.cream))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
 
                         Text("This cannot be undone. All your conversations, memories, tasks, and grocery lists will be permanently deleted.")
@@ -246,6 +252,7 @@ struct AccountView: View {
         Button(action: action) {
             rowLabel(icon: icon, title: title, titleColor: titleColor)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 

@@ -42,6 +42,7 @@ struct PaywallView: View {
                             .foregroundStyle(AvaTheme.terracotta)
                             .underline()
                     }
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain)
                     .padding(.bottom, 20)
                 }
@@ -205,6 +206,7 @@ struct PaywallView: View {
                     else     { Capsule().fill(AvaTheme.blushTerracotta) }
                 }
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).disabled(product == nil || store.isLoading)
             .padding(.horizontal, 16).padding(.bottom, 18)
         }
@@ -236,6 +238,7 @@ struct PaywallView: View {
                 .background(Capsule().fill(active ? AvaTheme.terracotta : Color.clear))
                 .animation(.spring(duration: 0.25), value: active)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain).frame(maxWidth: .infinity)
     }
 
@@ -259,6 +262,7 @@ struct PaywallView: View {
                 .font(AvaTheme.font(12, weight: .semibold))
                 .foregroundStyle(AvaTheme.inkMute).underline()
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

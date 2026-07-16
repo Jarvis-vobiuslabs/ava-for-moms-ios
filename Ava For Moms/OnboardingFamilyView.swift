@@ -46,6 +46,7 @@ struct OnboardingFamilyView: View {
                         .padding(.vertical, 18)
                         .background(Capsule().fill(AvaTheme.blushTerracotta))
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
 
                 Button(action: onNext) {
@@ -53,6 +54,7 @@ struct OnboardingFamilyView: View {
                         .font(AvaTheme.font(14, weight: .semibold))
                         .foregroundStyle(AvaTheme.inkMute)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
             }
             .padding(.horizontal, 28)
@@ -148,6 +150,7 @@ struct OnboardingFamilyView: View {
                     .font(AvaTheme.font(13, weight: .bold))
                     .foregroundStyle(AvaTheme.terracotta)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
             }
             .padding(16)
@@ -188,6 +191,7 @@ struct OnboardingFamilyView: View {
             }
             .foregroundStyle(AvaTheme.inkMute)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 14)
@@ -216,6 +220,7 @@ private struct KidRow: View {
                         .font(.system(size: 20))
                         .foregroundStyle(AvaTheme.inkSoft)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
 
                 Text("\(kid.age)")
@@ -228,6 +233,7 @@ private struct KidRow: View {
                         .font(.system(size: 20))
                         .foregroundStyle(AvaTheme.terracotta)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
             }
 
@@ -236,6 +242,7 @@ private struct KidRow: View {
                     .font(.system(size: 18))
                     .foregroundStyle(AvaTheme.inkSoft)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 16)

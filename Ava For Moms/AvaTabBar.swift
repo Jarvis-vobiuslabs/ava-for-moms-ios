@@ -39,6 +39,7 @@ struct AvaTabBar: View {
             .foregroundStyle(on ? AvaTheme.terracotta : AvaTheme.inkSoft)
             .frame(maxWidth: .infinity)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 
@@ -61,6 +62,7 @@ struct AvaTabBar: View {
             }
             .frame(maxWidth: .infinity)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

@@ -45,7 +45,7 @@ struct ProfileEditView: View {
                 HStack {
                     Button("Cancel") { dismiss() }
                         .font(AvaTheme.font(16, weight: .semibold))
-                        .foregroundStyle(AvaTheme.terracotta).buttonStyle(.plain)
+                        .foregroundStyle(AvaTheme.terracotta).contentShape(Rectangle()).buttonStyle(.plain)
                     Spacer()
                     Text("Edit Profile")
                         .font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
@@ -53,6 +53,7 @@ struct ProfileEditView: View {
                     Button("Save") { _Concurrency.Task { await save() } }
                         .font(AvaTheme.font(16, weight: .heavy))
                         .foregroundStyle(isSaving ? AvaTheme.inkSoft : AvaTheme.terracotta)
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain).disabled(isSaving || name.trimmingCharacters(in: .whitespaces).isEmpty)
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)
@@ -94,6 +95,7 @@ struct ProfileEditView: View {
                                             .background(RoundedRectangle(cornerRadius: 14)
                                                 .fill(workStatus == option ? AvaTheme.terracotta : AvaTheme.cream))
                                         }
+                                        .contentShape(Rectangle())
                                         .buttonStyle(.plain)
                                         .animation(.easeInOut(duration: 0.15), value: workStatus)
                                     }

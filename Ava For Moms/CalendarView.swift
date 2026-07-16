@@ -39,6 +39,7 @@ struct CalendarView: View {
                                     .font(.system(size: 18, weight: .bold)).foregroundStyle(.white))
                                 .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 8, x: 0, y: 4)
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 22).padding(.top, 60).padding(.bottom, 18)
@@ -55,6 +56,7 @@ struct CalendarView: View {
                                 .font(.system(size: 14, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
                                 .frame(width: 32, height: 44)
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
 
                         // Day pills
@@ -73,6 +75,7 @@ struct CalendarView: View {
                                         .fill(isSelected(day) ? AvaTheme.terracotta : Color.clear)
                                 )
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
                         }
 
@@ -86,6 +89,7 @@ struct CalendarView: View {
                                 .font(.system(size: 14, weight: .semibold)).foregroundStyle(AvaTheme.inkMute)
                                 .frame(width: 32, height: 44)
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(6).background(RoundedRectangle(cornerRadius: 22).fill(AvaTheme.cream))
@@ -115,6 +119,7 @@ struct CalendarView: View {
                             .padding(16)
                             .background(RoundedRectangle(cornerRadius: 18).fill(AvaTheme.cream))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain).padding(.horizontal, 22).padding(.top, 16)
                     }
 
@@ -144,6 +149,7 @@ struct CalendarView: View {
                                 }
                                 .frame(maxWidth: .infinity).padding(.vertical, 30)
                             }
+                            .contentShape(Rectangle())
                             .buttonStyle(.plain)
                         } else {
                             ForEach(selectedEvents) { event in
@@ -164,6 +170,7 @@ struct CalendarView: View {
                         .font(.system(size: 22, weight: .bold)).foregroundStyle(.white))
                     .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 12, x: 0, y: 8)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain).padding(.trailing, 18).padding(.bottom, 100)
         }
         .sheet(isPresented: $showAddEvent) {

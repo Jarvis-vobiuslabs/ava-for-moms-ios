@@ -7,17 +7,16 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 - [x] **1. Today page loads empty on launch** — fixed July 14: MainTabView now
   loads all four stores on auth (parallel), plus a non-prompting calendar
   access check so connected calendars show on Home at launch.
-- [ ] **2. Buttons only clickable on the text** — no `.contentShape(Rectangle())`
-  anywhere in the codebase; plain-style buttons only hit-test drawn pixels.
-  Fix: sweep all buttons, add contentShape + minimum 44pt targets. *(diagnosed, small)*
+- [x] **2. Buttons only clickable on the text** — fixed July 16: added
+  `.contentShape(Rectangle())` to all 86 plain-style buttons across 23 views,
+  so the full padded/framed area is tappable (tab bar was the worst case).
 - [ ] **3. Duplicate events in calendar** — EventKit two-way sync tracks IDs in
   UserDefaults, which breaks across reinstalls/devices and can double-import.
   Fix: rethink sync bookkeeping (store sync state in Supabase or EK notes tag).
-- [ ] **4. Adding to today's reminders/calendar fails without a time** —
-  `add_task` tool has no `due_date` field at all, and `add_calendar_event`
-  requires `starts_at`+`ends_at`. Fix: add optional due_date to add_task,
-  make ends_at optional (default +1h), support all-day events, prompt Ava to
-  default to "today" when no date given. *(backend-only, no app release)*
+- [x] **4. Adding to today's reminders/calendar fails without a time** —
+  fixed & deployed July 16: add_task gained optional due_date (date-only →
+  local 8pm), add_calendar_event's ends_at now optional (+1h default) with
+  all_day support, and Ava is instructed to never demand a time.
 - [ ] **5. Time understanding / local timezone per account** — store the user's
   IANA timezone on `profiles` (updated from app at launch), use it in
   morning-brief (currently fires 7:00 UTC for everyone) and all Ava date math.

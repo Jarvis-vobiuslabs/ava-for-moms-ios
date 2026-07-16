@@ -35,7 +35,7 @@ struct AddEventView: View {
                 HStack {
                     Button("Cancel") { onDismiss() }
                         .font(AvaTheme.font(16, weight: .semibold))
-                        .foregroundStyle(AvaTheme.terracotta).buttonStyle(.plain)
+                        .foregroundStyle(AvaTheme.terracotta).contentShape(Rectangle()).buttonStyle(.plain)
                     Spacer()
                     Text("New Event")
                         .font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
@@ -50,6 +50,7 @@ struct AddEventView: View {
                     }
                     .font(AvaTheme.font(16, weight: .heavy))
                     .foregroundStyle(canSave ? AvaTheme.terracotta : AvaTheme.inkSoft)
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain).disabled(!canSave)
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)

@@ -43,6 +43,7 @@ struct MyPlansView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(AvaTheme.inkMute))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 24)
@@ -230,6 +231,7 @@ struct MyPlansView: View {
                     else     { Capsule().fill(AvaTheme.blushTerracotta) }
                 }
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .disabled(product == nil || store.isLoading || isCurrentPlan)
             .padding(.horizontal, 16).padding(.bottom, 18)
@@ -259,6 +261,7 @@ struct MyPlansView: View {
                 .background(Capsule().fill(active ? AvaTheme.terracotta : Color.clear))
                 .animation(.spring(duration: 0.25), value: active)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain).frame(maxWidth: .infinity)
     }
 
@@ -268,6 +271,7 @@ struct MyPlansView: View {
                 .font(AvaTheme.font(12, weight: .semibold))
                 .foregroundStyle(AvaTheme.inkMute).underline()
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
     }
 }

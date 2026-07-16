@@ -23,6 +23,7 @@ struct LegalView: View {
                                 .font(.system(size: 12, weight: .bold))
                                 .foregroundStyle(AvaTheme.inkMute))
                     }
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain)
                 }
                 .padding(.horizontal, 24).padding(.top, 60).padding(.bottom, 20)

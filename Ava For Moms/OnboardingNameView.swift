@@ -66,6 +66,7 @@ struct OnboardingNameView: View {
             }
             .foregroundStyle(AvaTheme.inkMute)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .padding(.horizontal, 20)
         .padding(.top, 14)
@@ -83,6 +84,7 @@ struct OnboardingNameView: View {
                 )
                 .animation(.easeInOut(duration: 0.2), value: canContinue)
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .disabled(!canContinue)
     }

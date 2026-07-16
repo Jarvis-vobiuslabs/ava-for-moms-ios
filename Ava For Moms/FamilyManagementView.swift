@@ -31,7 +31,7 @@ struct FamilyManagementView: View {
                 HStack {
                     Button("Cancel") { dismiss() }
                         .font(AvaTheme.font(16, weight: .semibold))
-                        .foregroundStyle(AvaTheme.terracotta).buttonStyle(.plain)
+                        .foregroundStyle(AvaTheme.terracotta).contentShape(Rectangle()).buttonStyle(.plain)
                     Spacer()
                     Text("Family")
                         .font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
@@ -39,6 +39,7 @@ struct FamilyManagementView: View {
                     Button("Save") { _Concurrency.Task { await save() } }
                         .font(AvaTheme.font(16, weight: .heavy))
                         .foregroundStyle(isSaving ? AvaTheme.inkSoft : AvaTheme.terracotta)
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain).disabled(isSaving)
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)
@@ -99,6 +100,7 @@ struct FamilyManagementView: View {
                                     .font(AvaTheme.font(13, weight: .bold))
                                     .foregroundStyle(AvaTheme.terracotta)
                                 }
+                                .contentShape(Rectangle())
                                 .buttonStyle(.plain).padding(.trailing, 18)
                             }
 
@@ -134,17 +136,17 @@ struct FamilyManagementView: View {
             HStack(spacing: 8) {
                 Button { if kid.age.wrappedValue > 0 { kid.age.wrappedValue -= 1 } } label: {
                     Image(systemName: "minus.circle.fill").font(.system(size: 20)).foregroundStyle(AvaTheme.inkSoft)
-                }.buttonStyle(.plain)
+                }.contentShape(Rectangle()).buttonStyle(.plain)
                 Text("\(kid.age.wrappedValue)")
                     .font(AvaTheme.font(15, weight: .heavy)).foregroundStyle(AvaTheme.ink).frame(width: 24, alignment: .center)
                 Button { if kid.age.wrappedValue < 18 { kid.age.wrappedValue += 1 } } label: {
                     Image(systemName: "plus.circle.fill").font(.system(size: 20)).foregroundStyle(AvaTheme.terracotta)
-                }.buttonStyle(.plain)
+                }.contentShape(Rectangle()).buttonStyle(.plain)
             }
 
             Button { withAnimation { kids.removeAll { $0.id == kid.id } } } label: {
                 Image(systemName: "xmark.circle.fill").font(.system(size: 18)).foregroundStyle(AvaTheme.inkSoft)
-            }.buttonStyle(.plain)
+            }.contentShape(Rectangle()).buttonStyle(.plain)
         }
         .padding(.horizontal, 16).padding(.vertical, 14)
         .background(RoundedRectangle(cornerRadius: 16).fill(AvaTheme.cream))

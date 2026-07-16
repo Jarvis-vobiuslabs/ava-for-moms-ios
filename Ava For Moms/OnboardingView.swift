@@ -82,6 +82,7 @@ struct OnboardingView: View {
                         .clipShape(Capsule())
                         .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 12, x: 0, y: 8)
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
                 .padding(.horizontal, 30)
 

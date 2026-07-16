@@ -92,6 +92,7 @@ struct ChatView: View {
                         .font(.system(size: 14, weight: .semibold))
                         .foregroundStyle(AvaTheme.ink))
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
 
             Circle().fill(AvaTheme.blushTerracotta).frame(width: 40, height: 40)
@@ -119,6 +120,7 @@ struct ChatView: View {
                         .font(.system(size: 15, weight: .semibold))
                         .foregroundStyle(AvaTheme.inkMute))
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
         }
         .padding(.horizontal, 18).padding(.top, 56).padding(.bottom, 14)
@@ -215,6 +217,7 @@ struct ChatView: View {
                     .frame(maxWidth: .infinity).padding(.vertical, 12)
                     .background(Capsule().fill(AvaTheme.blushTerracotta))
                 }
+                .contentShape(Rectangle())
                 .buttonStyle(.plain)
                 .padding(.horizontal, 14)
             }
@@ -240,6 +243,7 @@ struct ChatView: View {
                     )
                     .animation(.easeInOut(duration: 0.15), value: canSend)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .padding(.trailing, 6).padding(.bottom, 7)
             .disabled(!canSend)

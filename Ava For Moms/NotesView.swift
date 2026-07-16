@@ -32,6 +32,7 @@ struct NotesView: View {
                                     .font(.system(size: 16, weight: .bold)).foregroundStyle(.white))
                                 .shadow(color: AvaTheme.terracotta.opacity(0.35), radius: 6, x: 0, y: 3)
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
 
                         Button { dismiss() } label: {
@@ -40,6 +41,7 @@ struct NotesView: View {
                                     .font(.system(size: 12, weight: .bold))
                                     .foregroundStyle(AvaTheme.inkMute))
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                 }
@@ -148,6 +150,7 @@ private struct NoteCard: View {
             .padding(16)
             .background(RoundedRectangle(cornerRadius: 18).fill(AvaTheme.cream))
         }
+        .contentShape(Rectangle())
         .buttonStyle(.plain)
         .swipeActions(edge: .trailing) {
             Button(role: .destructive, action: onDelete) {
@@ -198,7 +201,7 @@ struct NoteEditView: View {
                 HStack {
                     Button("Cancel") { dismiss() }
                         .font(AvaTheme.font(16, weight: .semibold))
-                        .foregroundStyle(AvaTheme.terracotta).buttonStyle(.plain)
+                        .foregroundStyle(AvaTheme.terracotta).contentShape(Rectangle()).buttonStyle(.plain)
                     Spacer()
                     Text(note == nil ? "New Note" : "Edit Note")
                         .font(AvaTheme.font(17, weight: .heavy)).foregroundStyle(AvaTheme.ink)
@@ -209,6 +212,7 @@ struct NoteEditView: View {
                     }
                     .font(AvaTheme.font(16, weight: .heavy))
                     .foregroundStyle(canSave ? AvaTheme.terracotta : AvaTheme.inkSoft)
+                    .contentShape(Rectangle())
                     .buttonStyle(.plain).disabled(!canSave)
                 }
                 .padding(.horizontal, 20).padding(.top, 20).padding(.bottom, 24)

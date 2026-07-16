@@ -64,6 +64,7 @@ struct HomeView: View {
                                         .foregroundStyle(.white)
                                 )
                         }
+                        .contentShape(Rectangle())
                         .buttonStyle(.plain)
                     }
                     .padding(.horizontal, 22)
@@ -106,6 +107,7 @@ struct HomeView: View {
                                             .background(.white)
                                             .clipShape(Capsule())
                                     }
+                                    .contentShape(Rectangle())
                                     .buttonStyle(.plain)
                                     Button { avaSuggestionDismissed = true } label: {
                                         Text("Later")
@@ -114,6 +116,7 @@ struct HomeView: View {
                                             .padding(.horizontal, 16).padding(.vertical, 9)
                                             .overlay(Capsule().stroke(.white.opacity(0.6), lineWidth: 1.5))
                                     }
+                                    .contentShape(Rectangle())
                                     .buttonStyle(.plain)
                                 }
                             }
@@ -188,6 +191,7 @@ struct HomeView: View {
                                             .frame(width: 24, height: 24)
                                             .background(Circle().fill(AvaTheme.line))
                                     }
+                                    .contentShape(Rectangle())
                                     .buttonStyle(.plain)
                                 }
                                 .padding(.vertical, 10)
@@ -260,6 +264,7 @@ struct HomeView: View {
                     )
                     .shadow(color: AvaTheme.terracotta.opacity(0.4), radius: 12, x: 0, y: 8)
             }
+            .contentShape(Rectangle())
             .buttonStyle(.plain)
             .padding(.trailing, 18)
             .padding(.bottom, 100)
