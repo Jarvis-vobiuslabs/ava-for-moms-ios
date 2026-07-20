@@ -42,15 +42,19 @@ async function sendPush(token: string, title: string, body: string) {
   })
 }
 
-async function generateBrief(name: string, urgentCount: number, totalCount: number): Promise<string> {
+async function generateBrief(name: string, urgentCount: number, totalCount: number, withQuote: boolean): Promise<string> {
+  const quoteLine = withQuote
+    ? `Lead with a short, uplifting motivational quote or mantra for a busy mom (original or classic), then a brief nod to her day. Up to 150 characters total.`
+    : `Keep it under 100 characters.`
   const res = await anthropic.messages.create({
     model: "claude-haiku-4-5-20251001",
-    max_tokens: 100,
+    max_tokens: 120,
     messages: [{
       role: "user",
       content: `Write a warm, friendly morning notification for ${name}.
 She has ${urgentCount} urgent task(s) and ${totalCount} total task(s) today.
-Keep it under 100 characters, warm and encouraging, like a best friend.
+${quoteLine}
+Warm and encouraging, like a best friend.
 No punctuation at the end. Just the message text, nothing else.`,
     }],
   })
@@ -92,7 +96,7 @@ serve(async (_req: Request) => {
       try {
         // Get profile + incomplete task count
         const [profileRes, tasksRes] = await Promise.all([
-          admin.from("profiles").select("name, timezone").eq("id", user_id).single(),
+          admin.from("profiles").select("name, timezone, quote_of_day").eq("id", user_id).single(),
           admin.from("tasks").select("id, priority").eq("user_id", user_id).eq("completed", false),
         ])
 
@@ -105,7 +109,7 @@ serve(async (_req: Request) => {
         const urgentCount  = tasks.filter((t: any) => t.priority === "urgent").length
         const totalCount   = tasks.length
 
-        const briefBody = await generateBrief(name, urgentCount, totalCount)
+        const briefBody = await generateBrief(name, urgentCount, totalCount, profileRes.data?.quote_of_day === true)
         const title     = urgentCount > 0 ? `${urgentCount} urgent task${urgentCount > 1 ? "s" : ""} today` : "Good morning ☀️"
 
         await sendPush(token, title, briefBody)

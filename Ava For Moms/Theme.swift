@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 // MARK: - Sprig Design System
 
@@ -32,9 +33,15 @@ struct AvaTheme {
         startPoint: .topLeading, endPoint: .bottomTrailing
     )
 
-    // Font — system rounded gives the same feel as Nunito, no bundling needed
+    // Font — system rounded gives the same feel as Nunito, no bundling needed.
+    // Sizes get a readability boost for our older users:
+    //  • +8% across the board, with an 11.5pt floor on micro-labels
+    //  • scaled through UIFontMetrics so the iOS text-size setting
+    //    (Settings → Display → Text Size) is respected app-wide
     static func font(_ size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .rounded)
+        let boosted = max(size * 1.08, 11.5)
+        let scaled = UIFontMetrics(forTextStyle: .body).scaledValue(for: boosted)
+        return .system(size: scaled, weight: weight, design: .rounded)
     }
 }
 

@@ -10,9 +10,10 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 - [x] **2. Buttons only clickable on the text** — fixed July 16: added
   `.contentShape(Rectangle())` to all 86 plain-style buttons across 23 views,
   so the full padded/framed area is tappable (tab bar was the worst case).
-- [ ] **3. Duplicate events in calendar** — EventKit two-way sync tracks IDs in
-  UserDefaults, which breaks across reinstalls/devices and can double-import.
-  Fix: rethink sync bookkeeping (store sync state in Supabase or EK notes tag).
+- [x] **3. Duplicate events in calendar** — fixed July 16: native copies are
+  now tagged with an avaformoms:// URL marker (survives reinstalls), sync
+  checks the marker instead of only UserDefaults, title+time fingerprint
+  dedupes legacy copies, and a re-entry guard stops concurrent double-sync.
 - [x] **4. Adding to today's reminders/calendar fails without a time** —
   fixed & deployed July 16: add_task gained optional due_date (date-only →
   local 8pm), add_calendar_event's ends_at now optional (+1h default) with
@@ -31,13 +32,15 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 - [x] **8. Evening task nag** — done July 16: evening brief leads with open
   task count ("3 tasks still open") + a no-guilt nudge; congratulates when
   the list is clear.
-- [ ] **9. Quote of the day toggle** — profiles column + Settings toggle;
-  morning notification includes a motivational quote when enabled.
+- [x] **9. Quote of the day toggle** — done July 16: profiles.quote_of_day
+  column live, toggle in Account → AVA section, morning brief leads with a
+  motivational quote when enabled (backend deployed; toggle ships next build).
 
 ## 🎨 UX
 
-- [ ] **10. Bigger text/buttons for older users** — bump AvaTheme sizes, adopt
-  Dynamic Type support, larger tap targets (pairs with #2).
+- [x] **10. Bigger text/buttons for older users** — done July 16: AvaTheme
+  fonts +8% with an 11.5pt floor, and Dynamic Type (iOS Text Size setting)
+  now respected app-wide via UIFontMetrics. Tap targets done in #2.
 - [ ] **11. Post-onboarding "how to use Ava" welcome page** — e.g. "tell her all
   the birthdays you need for the year and she'll add + remind you."
 - [ ] **12. Chat history viewer + clear history** — all-time history for viewing

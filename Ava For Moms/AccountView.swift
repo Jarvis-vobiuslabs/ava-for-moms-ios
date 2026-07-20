@@ -16,6 +16,8 @@ struct AccountView: View {
     @State private var showMyPlans = false
     @Environment(\.openURL) private var openURL
     @State private var deleteError: String?
+    @State private var quoteOfDay = false
+    @State private var quotePrefLoaded = false
 
     var body: some View {
         ZStack {
@@ -54,6 +56,26 @@ struct AccountView: View {
                     sectionHeader("AVA")
                     settingsCard {
                         row(icon: "brain", title: "What Ava remembers") { showMemories = true }
+                        Divider().padding(.leading, 54).tint(AvaTheme.line)
+                        HStack(spacing: 12) {
+                            ZStack {
+                                RoundedRectangle(cornerRadius: 10).fill(AvaTheme.bgDeep).frame(width: 36, height: 36)
+                                Image(systemName: "sunrise").font(.system(size: 15, weight: .medium)).foregroundStyle(AvaTheme.inkMute)
+                            }
+                            VStack(alignment: .leading, spacing: 2) {
+                                Text("Quote of the day")
+                                    .font(AvaTheme.font(15, weight: .bold))
+                                    .foregroundStyle(AvaTheme.ink)
+                                Text("A little motivation with your morning brief")
+                                    .font(AvaTheme.font(12, weight: .medium))
+                                    .foregroundStyle(AvaTheme.inkMute)
+                            }
+                            Spacer()
+                            Toggle("", isOn: $quoteOfDay)
+                                .labelsHidden()
+                                .tint(AvaTheme.terracotta)
+                        }
+                        .padding(16)
                     }
 
                     // ── Legal ──────────────────────────────────────────────
@@ -178,6 +200,17 @@ struct AccountView: View {
         } message: {
             Text("This cannot be undone.")
         }
+        .task { await loadQuotePref() }
+        .onChange(of: quoteOfDay) { _, newValue in
+            // Skip the write triggered by the initial load
+            guard quotePrefLoaded, let userId = auth.currentUserId else { return }
+            _Concurrency.Task {
+                let q = try? supabase.from("profiles")
+                    .update(["quote_of_day": AnyJSON.bool(newValue)], returning: .minimal)
+                    .eq("id", value: userId.uuidString)
+                _ = try? await q?.execute()
+            }
+        }
         .sheet(isPresented: $showMemories)    { MemoriesView().environment(auth) }
         .sheet(isPresented: $showEditProfile) { ProfileEditView().environment(auth) }
         .sheet(isPresented: $showFamily)      { FamilyManagementView().environment(auth) }
@@ -228,6 +261,26 @@ struct AccountView: View {
             deleteError = error.localizedDescription
             isDeleting = false
         }
+    }
+
+    // MARK: - Quote of the day preference
+
+    private func loadQuotePref() async {
+        guard let userId = auth.currentUserId else { return }
+        struct Pref: Decodable {
+            let quoteOfDay: Bool?
+            enum CodingKeys: String, CodingKey { case quoteOfDay = "quote_of_day" }
+        }
+        if let pref = try? await supabase
+            .from("profiles")
+            .select("quote_of_day")
+            .eq("id", value: userId.uuidString)
+            .single()
+            .execute()
+            .value as Pref {
+            quoteOfDay = pref.quoteOfDay ?? false
+        }
+        quotePrefLoaded = true
     }
 
     // MARK: - Helpers
