@@ -8,6 +8,7 @@ struct MainTabView: View {
     @State private var notesStore    = NotesStore()
     @Environment(SubscriptionManager.self) private var store
     @Environment(AuthManager.self) private var auth
+    @State private var showWelcome = UserDefaults.standard.bool(forKey: "ava.shouldShowWelcome")
 
     private var isIPad: Bool { UIDevice.current.userInterfaceIdiom == .pad }
 
@@ -38,6 +39,20 @@ struct MainTabView: View {
             _Concurrency.Task { await calendarStore.load(userId: userId, weekStart: Date().startOfWeek) }
             _Concurrency.Task { await groceryStore.load(userId: userId) }
             _Concurrency.Task { await notesStore.load(userId: userId) }
+        }
+        .fullScreenCover(isPresented: $showWelcome) {
+            WelcomeView(
+                onStartChat: {
+                    UserDefaults.standard.set(false, forKey: "ava.shouldShowWelcome")
+                    showWelcome = false
+                    selectedTab = .chat
+                },
+                onDismiss: {
+                    UserDefaults.standard.set(false, forKey: "ava.shouldShowWelcome")
+                    showWelcome = false
+                }
+            )
+            .environment(auth)
         }
     }
 

@@ -84,6 +84,11 @@ struct OnboardingFlowView: View {
 
     private func advance() {
         goingForward = true
+        // Leaving the paywall step means a fresh signup is about to happen —
+        // queue the one-time welcome screen for their first arrival in the app
+        if step == 6 {
+            UserDefaults.standard.set(true, forKey: "ava.shouldShowWelcome")
+        }
         withAnimation(.easeInOut(duration: 0.28)) { step += 1 }
     }
 

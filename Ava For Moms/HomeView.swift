@@ -3,6 +3,7 @@ import SwiftUI
 struct HomeView: View {
     let onChatTap: () -> Void
     @Environment(AuthManager.self) private var auth
+    @Environment(SubscriptionManager.self) private var subscriptions
     @Environment(TaskStore.self) private var taskStore
     @Environment(CalendarStore.self) private var calendarStore
     @State private var showAccount = false
@@ -45,10 +46,18 @@ struct HomeView: View {
                     // ── Header ──────────────────────────────────────────
                     HStack(alignment: .top) {
                         VStack(alignment: .leading, spacing: 6) {
-                            Text("Hey \(auth.firstName) 👋")
-                                .font(AvaTheme.font(30, weight: .heavy))
-                                .foregroundStyle(AvaTheme.ink)
-                                .tracking(-0.8)
+                            HStack(spacing: 7) {
+                                Text("Hey \(auth.firstName) 👋")
+                                    .font(AvaTheme.font(30, weight: .heavy))
+                                    .foregroundStyle(AvaTheme.ink)
+                                    .tracking(-0.8)
+                                if subscriptions.tier.isPro {
+                                    Image(systemName: "star.fill")
+                                        .font(.system(size: 19, weight: .bold))
+                                        .foregroundStyle(Color(hex: "F5B942"))
+                                        .shadow(color: Color(hex: "F5B942").opacity(0.5), radius: 5)
+                                }
+                            }
                             Text(todayString)
                                 .font(AvaTheme.font(14, weight: .medium))
                                 .foregroundStyle(AvaTheme.inkMute)

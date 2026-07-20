@@ -9,6 +9,7 @@ struct PaywallView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(SubscriptionManager.self) private var store
     @State private var isAnnual = true
+    @State private var showCelebration = false
     @Environment(\.openURL) private var openURL
 
     // Real products from StoreKit (shows local currency + correct prices)
@@ -105,6 +106,14 @@ struct PaywallView: View {
         }
         .background(AvaTheme.bg.ignoresSafeArea())
         .task { await store.load() }
+        .overlay {
+            if showCelebration {
+                CelebrationOverlay(onDone: {
+                    showCelebration = false
+                    onComplete()
+                })
+            }
+        }
     }
 
     // MARK: - Plan card
@@ -190,7 +199,10 @@ struct PaywallView: View {
                 guard let product, let userId = auth.currentUserId else { return }
                 _Concurrency.Task {
                     let success = await store.purchase(product, userId: userId)
-                    if success { onComplete() }
+                    if success {
+                        if isPro { showCelebration = true }   // confetti first, then continue
+                        else { onComplete() }
+                    }
                 }
             } label: {
                 ZStack {

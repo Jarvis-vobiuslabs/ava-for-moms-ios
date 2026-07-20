@@ -8,6 +8,7 @@ struct MyPlansView: View {
     @Environment(\.openURL) private var openURL
 
     @State private var isAnnual = true
+    @State private var showCelebration = false
 
     private var standardProduct: Product? { isAnnual ? store.standardAnnual : store.standardMonthly }
     private var proProduct:      Product? { isAnnual ? store.proAnnual      : store.proMonthly      }
@@ -124,6 +125,14 @@ struct MyPlansView: View {
             }
         }
         .task { await store.load() }
+        .overlay {
+            if showCelebration {
+                CelebrationOverlay(onDone: {
+                    showCelebration = false
+                    dismiss()
+                })
+            }
+        }
     }
 
     // MARK: - Plan card
@@ -215,7 +224,10 @@ struct MyPlansView: View {
                 guard let product, let userId = auth.currentUserId else { return }
                 _Concurrency.Task {
                     let success = await store.purchase(product, userId: userId)
-                    if success { dismiss() }
+                    if success {
+                        if isPro { showCelebration = true }   // confetti first, then dismiss
+                        else { dismiss() }
+                    }
                 }
             } label: {
                 ZStack {
