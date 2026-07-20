@@ -26,11 +26,11 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 
 ## 🔔 Notifications bundle (shared infra — do together)
 
-- [ ] **7. Morning AND evening daily notifications that actually work** —
-  morning half DONE (hourly sweep at 7am local, deployed July 16).
-  Remaining: evening notification function.
-- [ ] **8. Evening task nag** — "Ava reminder if tasks not checked off" —
-  fold into evening notification: unfinished-task count + warm nudge.
+- [x] **7. Morning AND evening daily notifications** — done July 16: morning
+  brief at 7am local + evening brief at 8pm local, both hourly sweeps.
+- [x] **8. Evening task nag** — done July 16: evening brief leads with open
+  task count ("3 tasks still open") + a no-guilt nudge; congratulates when
+  the list is clear.
 - [ ] **9. Quote of the day toggle** — profiles column + Settings toggle;
   morning notification includes a motivational quote when enabled.
 
