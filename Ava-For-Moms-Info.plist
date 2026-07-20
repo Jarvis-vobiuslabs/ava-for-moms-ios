@@ -10,5 +10,9 @@
 	<string>Ava reads your calendar to build your daily brief and help you schedule events.</string>
 	<key>NSCalendarsWriteOnlyAccessUsageDescription</key>
 	<string>Ava adds events to your calendar when you ask her to.</string>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Ava uses the microphone so you can talk to her instead of typing.</string>
+	<key>NSSpeechRecognitionUsageDescription</key>
+	<string>Ava turns your speech into text on your device so you can dictate messages.</string>
 </dict>
 </plist>

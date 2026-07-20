@@ -44,15 +44,19 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 - [x] **11. Post-onboarding welcome page** — done July 16: one-time full-screen
   "You're all set" page after onboarding with 4 example-driven tips (birthdays,
   reminders, grocery, notes) and a "Say hi to Ava" CTA straight into chat.
-- [ ] **12. Chat history viewer + clear history** — all-time history for viewing
-  (not model context), plus a clear-history action.
+- [x] **12. Chat history viewer + clear history** — done July 16: clock icon
+  in chat header opens all-time read-only transcript grouped by day, with a
+  confirmed Clear History that deletes all conversations (memories kept).
 
 ## ✨ Features
 
 - [x] **13. Upgrade celebration** — done July 16: full-screen confetti rain +
   "Welcome to Ava Pro" card on any pro purchase (paywall & My Plans), gold
   star beside the name on Home for pro members.
-- [ ] **14. Voice input button for chat** — SFSpeechRecognizer dictation.
+- [x] **14. Voice input button for chat** — done July 16: big mic button in
+  the composer, on-device SFSpeechRecognizer, live transcript into the text
+  field (reviewable before send), appends to typed text, red pulse while
+  listening. Mic + speech permission strings added.
 - [ ] **15. Better recent-chat memory** — DECIDED: consider fixed by the July 14
   constraint repair; re-open only if it still feels weak after memories accumulate.
 - [ ] **16. Image upload in chat (50/month cap)** — photo picker → storage →

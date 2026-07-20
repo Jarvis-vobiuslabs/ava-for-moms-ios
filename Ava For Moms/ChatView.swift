@@ -9,6 +9,9 @@ struct ChatView: View {
     @Environment(NotesStore.self) private var notesStore
     @Environment(SubscriptionManager.self) private var subscriptionManager
     @State private var chatService = ChatService()
+    @State private var speech = SpeechRecognizer()
+    @State private var dictationBase = ""
+    @State private var showHistory = false
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
     @State private var showNotes = false
@@ -48,6 +51,14 @@ struct ChatView: View {
             if let userId = auth.currentUserId {
                 await chatService.loadHistory(userId: userId)
             }
+        }
+        // Live dictation → text field (appended after whatever was typed)
+        .onChange(of: speech.transcript) { _, text in
+            guard !text.isEmpty else { return }
+            inputText = dictationBase + text
+        }
+        .onChange(of: speech.errorMessage) { _, err in
+            if let err { chatService.errorMessage = err }
         }
         .onChange(of: chatService.isTyping) { _, isTyping in
             guard !isTyping,
@@ -114,6 +125,14 @@ struct ChatView: View {
                 }
             }
             Spacer()
+            Button { showHistory = true } label: {
+                Circle().fill(AvaTheme.cream).frame(width: 38, height: 38)
+                    .overlay(Image(systemName: "clock.arrow.circlepath")
+                        .font(.system(size: 15, weight: .semibold))
+                        .foregroundStyle(AvaTheme.inkMute))
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
             Button { showNotes = true } label: {
                 Circle().fill(AvaTheme.cream).frame(width: 38, height: 38)
                     .overlay(Image(systemName: "note.text")
@@ -127,6 +146,12 @@ struct ChatView: View {
         .background(AvaTheme.bg)
         .sheet(isPresented: $showNotes) {
             NotesView().environment(auth).environment(notesStore)
+        }
+        .sheet(isPresented: $showHistory) {
+            ChatHistoryView(onCleared: {
+                chatService.messages = []
+            })
+            .environment(auth)
         }
     }
 
@@ -222,13 +247,32 @@ struct ChatView: View {
                 .padding(.horizontal, 14)
             }
             HStack(alignment: .bottom, spacing: 8) {
-            TextField("Message Ava…", text: $inputText, axis: .vertical)
+            TextField(speech.isRecording ? "Listening…" : "Message Ava…", text: $inputText, axis: .vertical)
                 .font(AvaTheme.font(15, weight: .medium))
                 .foregroundStyle(AvaTheme.ink)
                 .tint(AvaTheme.terracotta)
                 .lineLimit(1...5)
                 .padding(.leading, 16).padding(.vertical, 13)
                 .focused($inputFocused)
+
+            // Big friendly mic — tap to dictate, tap again to stop
+            Button(action: micTapped) {
+                Circle()
+                    .fill(speech.isRecording
+                          ? AnyShapeStyle(Color(hex: "D9534F"))
+                          : AnyShapeStyle(AvaTheme.bgDeep))
+                    .frame(width: 38, height: 38)
+                    .overlay(
+                        Image(systemName: speech.isRecording ? "mic.fill" : "mic")
+                            .font(.system(size: 15, weight: .bold))
+                            .foregroundStyle(speech.isRecording ? .white : AvaTheme.inkMute)
+                            .symbolEffect(.pulse, isActive: speech.isRecording)
+                    )
+                    .animation(.easeInOut(duration: 0.15), value: speech.isRecording)
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .padding(.bottom, 7)
 
             Button(action: sendMessage) {
                 Circle()
@@ -272,7 +316,18 @@ struct ChatView: View {
 
     // MARK: - Send
 
+    private func micTapped() {
+        if speech.isRecording {
+            speech.stop()
+        } else {
+            // Preserve anything already typed; dictation appends after it
+            dictationBase = inputText.isEmpty ? "" : inputText + " "
+            _Concurrency.Task { await speech.start() }
+        }
+    }
+
     private func sendMessage() {
+        if speech.isRecording { speech.stop() }
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !chatService.isTyping else { return }
         guard let userId = auth.currentUserId else {
