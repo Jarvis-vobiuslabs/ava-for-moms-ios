@@ -14,5 +14,7 @@
 	<string>Ava uses the microphone so you can talk to her instead of typing.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Ava turns your speech into text on your device so you can dictate messages.</string>
+	<key>NSPhotoLibraryAddUsageDescription</key>
+	<string>Ava saves the images she creates for you to your photo library.</string>
 </dict>
 </plist>

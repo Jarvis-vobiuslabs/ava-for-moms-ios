@@ -15,6 +15,7 @@ struct ChatView: View {
     @State private var showHistory = false
     @State private var photoItem: PhotosPickerItem?
     @State private var pendingImage: UIImage?
+    @State private var showImageGen = false
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
     @State private var showNotes = false
@@ -139,6 +140,14 @@ struct ChatView: View {
                 }
             }
             Spacer()
+            Button { showImageGen = true } label: {
+                Circle().fill(AvaTheme.blushTerracotta).frame(width: 38, height: 38)
+                    .overlay(Image(systemName: "sparkles")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(.white))
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
             Button { showHistory = true } label: {
                 Circle().fill(AvaTheme.cream).frame(width: 38, height: 38)
                     .overlay(Image(systemName: "clock.arrow.circlepath")
@@ -166,6 +175,9 @@ struct ChatView: View {
                 chatService.messages = []
             })
             .environment(auth)
+        }
+        .sheet(isPresented: $showImageGen) {
+            ImageGenView().environment(auth)
         }
     }
 
