@@ -17,9 +17,9 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   fixed & deployed July 16: add_task gained optional due_date (date-only →
   local 8pm), add_calendar_event's ends_at now optional (+1h default) with
   all_day support, and Ava is instructed to never demand a time.
-- [ ] **5. Time understanding / local timezone per account** — store the user's
-  IANA timezone on `profiles` (updated from app at launch), use it in
-  morning-brief (currently fires 7:00 UTC for everyone) and all Ava date math.
+- [x] **5. Time understanding / local timezone per account** — done July 16:
+  profiles.timezone column live (migration 006), app writes it on profile load
+  (ships next build), morning-brief now sweeps hourly and fires at 7am LOCAL.
 - [ ] **6. Calendar permission stuck after first decline** — iOS never re-shows
   the system prompt. Fix: detect `.denied` and show a "Connect calendar" card
   that deep-links to Settings.
@@ -27,7 +27,8 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 ## 🔔 Notifications bundle (shared infra — do together)
 
 - [ ] **7. Morning AND evening daily notifications that actually work** —
-  needs timezone from #5; add evening cron + per-user local-time windows.
+  morning half DONE (hourly sweep at 7am local, deployed July 16).
+  Remaining: evening notification function.
 - [ ] **8. Evening task nag** — "Ava reminder if tasks not checked off" —
   fold into evening notification: unfinished-task count + warm nudge.
 - [ ] **9. Quote of the day toggle** — profiles column + Settings toggle;
