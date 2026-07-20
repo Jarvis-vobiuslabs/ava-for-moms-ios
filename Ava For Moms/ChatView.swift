@@ -1,4 +1,5 @@
 import SwiftUI
+import PhotosUI
 
 struct ChatView: View {
     let onBack: () -> Void
@@ -12,6 +13,8 @@ struct ChatView: View {
     @State private var speech = SpeechRecognizer()
     @State private var dictationBase = ""
     @State private var showHistory = false
+    @State private var photoItem: PhotosPickerItem?
+    @State private var pendingImage: UIImage?
     @State private var inputText = ""
     @State private var keyboardHeight: CGFloat = 0
     @State private var showNotes = false
@@ -59,6 +62,17 @@ struct ChatView: View {
         }
         .onChange(of: speech.errorMessage) { _, err in
             if let err { chatService.errorMessage = err }
+        }
+        // Photo picked → downscale and stage it beside the composer
+        .onChange(of: photoItem) { _, item in
+            guard let item else { return }
+            _Concurrency.Task {
+                if let data = try? await item.loadTransferable(type: Data.self),
+                   let img = UIImage(data: data) {
+                    pendingImage = img.resized(maxDimension: 1280)
+                }
+                photoItem = nil
+            }
         }
         .onChange(of: chatService.isTyping) { _, isTyping in
             guard !isTyping,
@@ -246,7 +260,42 @@ struct ChatView: View {
                 .buttonStyle(.plain)
                 .padding(.horizontal, 14)
             }
+            // Pending photo preview — rides along with the next message
+            if let img = pendingImage {
+                HStack(spacing: 10) {
+                    Image(uiImage: img)
+                        .resizable().scaledToFill()
+                        .frame(width: 56, height: 56)
+                        .clipShape(RoundedRectangle(cornerRadius: 12))
+                    Text("Photo attached")
+                        .font(AvaTheme.font(13, weight: .semibold))
+                        .foregroundStyle(AvaTheme.inkMute)
+                    Spacer()
+                    Button { pendingImage = nil } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 20))
+                            .foregroundStyle(AvaTheme.inkSoft)
+                    }
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                }
+                .padding(10)
+                .background(RoundedRectangle(cornerRadius: 16).fill(AvaTheme.cream))
+                .padding(.horizontal, 14)
+            }
             HStack(alignment: .bottom, spacing: 8) {
+            PhotosPicker(selection: $photoItem, matching: .images) {
+                Circle()
+                    .fill(AvaTheme.bgDeep)
+                    .frame(width: 38, height: 38)
+                    .overlay(Image(systemName: "photo")
+                        .font(.system(size: 15, weight: .bold))
+                        .foregroundStyle(AvaTheme.inkMute))
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .padding(.leading, 6).padding(.bottom, 7)
+
             TextField(speech.isRecording ? "Listening…" : "Message Ava…", text: $inputText, axis: .vertical)
                 .font(AvaTheme.font(15, weight: .medium))
                 .foregroundStyle(AvaTheme.ink)
@@ -309,7 +358,7 @@ struct ChatView: View {
     private var freeTrialExhausted: Bool { isFreeTrialMode && freeMessageUsed && !isSubscribed }
 
     private var canSend: Bool {
-        !inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        (!inputText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty || pendingImage != nil)
         && !chatService.isTyping
         && !freeTrialExhausted
     }
@@ -329,13 +378,15 @@ struct ChatView: View {
     private func sendMessage() {
         if speech.isRecording { speech.stop() }
         let text = inputText.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !text.isEmpty, !chatService.isTyping else { return }
+        let image = pendingImage
+        guard !text.isEmpty || image != nil, !chatService.isTyping else { return }
         guard let userId = auth.currentUserId else {
             chatService.errorMessage = "Not signed in — please restart the app."
             return
         }
         inputText = ""
-        _Concurrency.Task { await chatService.send(text, userId: userId) }
+        pendingImage = nil
+        _Concurrency.Task { await chatService.send(text, image: image, userId: userId) }
     }
 }
 
@@ -348,22 +399,66 @@ private struct LiveMessageBubble: View {
         HStack(alignment: .bottom) {
             if !message.isAva { Spacer(minLength: 60) }
 
-            Text(message.content.isEmpty && message.isAva ? "…" : message.content)
-                .font(AvaTheme.font(14.5, weight: .medium))
-                .foregroundStyle(message.isAva ? AvaTheme.ink : .white)
-                .lineSpacing(2)
-                .padding(.horizontal, 16).padding(.vertical, 13)
-                .background(message.isAva ? AvaTheme.cream : AvaTheme.terracotta)
-                .clipShape(UnevenRoundedRectangle(
-                    topLeadingRadius: 22,
-                    bottomLeadingRadius: message.isAva ? 6 : 22,
-                    bottomTrailingRadius: message.isAva ? 22 : 6,
-                    topTrailingRadius: 22
-                ))
+            VStack(alignment: message.isAva ? .leading : .trailing, spacing: 6) {
+                if let img = message.localImage {
+                    Image(uiImage: img)
+                        .resizable().scaledToFill()
+                        .frame(width: 220, height: 220)
+                        .clipped()
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                } else if let path = message.imagePath {
+                    SignedImageView(path: path)
+                        .frame(width: 220, height: 220)
+                        .clipShape(RoundedRectangle(cornerRadius: 18))
+                }
+
+                Text(message.content.isEmpty && message.isAva ? "…" : message.content)
+                    .font(AvaTheme.font(14.5, weight: .medium))
+                    .foregroundStyle(message.isAva ? AvaTheme.ink : .white)
+                    .lineSpacing(2)
+                    .padding(.horizontal, 16).padding(.vertical, 13)
+                    .background(message.isAva ? AvaTheme.cream : AvaTheme.terracotta)
+                    .clipShape(UnevenRoundedRectangle(
+                        topLeadingRadius: 22,
+                        bottomLeadingRadius: message.isAva ? 6 : 22,
+                        bottomTrailingRadius: message.isAva ? 22 : 6,
+                        topTrailingRadius: 22
+                    ))
+            }
 
             if message.isAva { Spacer(minLength: 60) }
         }
         .frame(maxWidth: .infinity, alignment: message.isAva ? .leading : .trailing)
+    }
+}
+
+// Loads a chat photo from private storage via a short-lived signed URL
+private struct SignedImageView: View {
+    let path: String
+    @State private var url: URL?
+
+    var body: some View {
+        Group {
+            if let url {
+                AsyncImage(url: url) { img in
+                    img.resizable().scaledToFill()
+                } placeholder: {
+                    ZStack {
+                        AvaTheme.bgDeep
+                        ProgressView().tint(AvaTheme.terracotta)
+                    }
+                }
+            } else {
+                ZStack {
+                    AvaTheme.bgDeep
+                    ProgressView().tint(AvaTheme.terracotta)
+                }
+            }
+        }
+        .task {
+            url = try? await supabase.storage.from("chat-images")
+                .createSignedURL(path: path, expiresIn: 3600)
+        }
     }
 }
 

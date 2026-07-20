@@ -59,8 +59,10 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   listening. Mic + speech permission strings added.
 - [ ] **15. Better recent-chat memory** — DECIDED: consider fixed by the July 14
   constraint repair; re-open only if it still feels weak after memories accumulate.
-- [ ] **16. Image upload in chat (50/month cap)** — photo picker → storage →
-  Claude vision; per-user monthly counter.
+- [x] **16. Image upload in chat (50/month cap)** — done July 16: photo button
+  in composer → private chat-images bucket → Claude vision. Cap enforced
+  server-side with a friendly Ava message; photos persist in history via
+  signed URLs; images downscaled to 1280px for speed/cost.
 - [ ] **17. Higgsfield image generation** — DECIDED: 10 generations/month included
   in BOTH plans. Prompt idea chips in chat (e.g. "colouring sheet with your
   kid's name", "birthday card"). Must support saving/downloading the image

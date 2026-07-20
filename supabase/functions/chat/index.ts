@@ -199,6 +199,34 @@ async function executeTool(name: string, input: any, admin: any, userId: string,
   throw new Error("Unknown tool: " + name)
 }
 
+// ── Image helpers ────────────────────────────────────────────────────────────
+
+// Chunked base64 encode (String.fromCharCode on a whole image blows the stack)
+function toBase64(buf: ArrayBuffer): string {
+  const bytes = new Uint8Array(buf)
+  let bin = ""
+  const chunk = 0x8000
+  for (let i = 0; i < bytes.length; i += chunk) {
+    bin += String.fromCharCode(...bytes.subarray(i, i + chunk))
+  }
+  return btoa(bin)
+}
+
+// One-off SSE response carrying a plain text message (used for the photo cap)
+function sseText(text: string): Response {
+  const enc = new TextEncoder()
+  const body = new ReadableStream({
+    start(c) {
+      c.enqueue(enc.encode("data: " + JSON.stringify({ text }) + "\n\n"))
+      c.enqueue(enc.encode("data: [DONE]\n\n"))
+      c.close()
+    },
+  })
+  return new Response(body, {
+    headers: { ...CORS, "Content-Type": "text/event-stream", "Cache-Control": "no-cache" },
+  })
+}
+
 // ── Main handler ─────────────────────────────────────────────────────────────
 
 serve(async (req: Request) => {
@@ -228,7 +256,7 @@ serve(async (req: Request) => {
       return new Response(JSON.stringify({ error: "Unauthorized" }), { status: 401, headers: CORS })
     }
 
-    const { message, conversationId, timezone, timezoneOffsetMinutes } = await req.json()
+    const { message, conversationId, timezone, timezoneOffsetMinutes, imagePath } = await req.json()
     if (!message || !conversationId) {
       return new Response(JSON.stringify({ error: "message and conversationId required" }), { status: 400, headers: CORS })
     }
@@ -277,6 +305,30 @@ serve(async (req: Request) => {
       last_message_at: new Date().toISOString(),
     }, { onConflict: "id", ignoreDuplicates: false })
 
+    // ── Photo upload: enforce monthly cap, then fetch for Claude vision ──
+    const IMAGE_MONTHLY_CAP = 50
+    let imageBlock: any = null
+    if (imagePath) {
+      const monthStart = new Date()
+      monthStart.setUTCDate(1)
+      monthStart.setUTCHours(0, 0, 0, 0)
+      const { count } = await admin.from("messages")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", user.id)
+        .not("image_path", "is", null)
+        .gte("created_at", monthStart.toISOString())
+      if ((count ?? 0) >= IMAGE_MONTHLY_CAP) {
+        return sseText(`You've used all ${IMAGE_MONTHLY_CAP} photo uploads for this month — they refresh on the 1st! Describe it to me in words and I'll still do my best 💛`)
+      }
+      const { data: file, error: dlErr } = await admin.storage.from("chat-images").download(imagePath)
+      if (!dlErr && file) {
+        imageBlock = {
+          type: "image",
+          source: { type: "base64", media_type: "image/jpeg", data: toBase64(await file.arrayBuffer()) },
+        }
+      }
+    }
+
     // ── Save user message ────────────────────────────────────────────────
     await admin.from("messages").insert({
       conversation_id: conversationId,
@@ -284,9 +336,13 @@ serve(async (req: Request) => {
       role: "user",
       content: message,
       model,
+      image_path: imagePath || null,
     })
 
-    history.push({ role: "user", content: message })
+    history.push({
+      role: "user",
+      content: imageBlock ? [imageBlock, { type: "text", text: message }] : message,
+    })
 
     // ── Stream from Claude with tool support ─────────────────────────────
     const encoder = new TextEncoder()

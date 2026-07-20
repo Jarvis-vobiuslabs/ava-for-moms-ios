@@ -1,5 +1,6 @@
 import Foundation
 import Supabase
+import UIKit
 
 // Handles all communication with the Ava chat edge function.
 // Uses server-sent events (SSE) for streaming responses.
@@ -17,11 +18,31 @@ final class ChatService {
 
     // MARK: - Send a message to Ava
 
-    func send(_ text: String, userId: UUID) async {
-        guard !text.trimmingCharacters(in: .whitespaces).isEmpty else { return }
+    func send(_ text: String, image: UIImage? = nil, userId: UUID) async {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty || image != nil else { return }
+        // The backend requires non-empty text; photos can go without a caption
+        let outgoing = trimmed.isEmpty ? "Sent you a photo 📷" : trimmed
 
         let conversationId = await ensureConversation(userId: userId)
-        let userMsg = ChatMessage(role: .user, content: text)
+
+        // Upload the photo (downscaled) to the user's private folder first
+        var imagePath: String? = nil
+        if let image {
+            let resized = image.resized(maxDimension: 1280)
+            if let jpeg = resized.jpegData(compressionQuality: 0.7) {
+                let path = "\(userId.uuidString.lowercased())/\(UUID().uuidString).jpg"
+                do {
+                    _ = try await supabase.storage.from("chat-images")
+                        .upload(path, data: jpeg, options: FileOptions(contentType: "image/jpeg"))
+                    imagePath = path
+                } catch {
+                    errorMessage = "Photo upload failed — sending without it"
+                }
+            }
+        }
+
+        let userMsg = ChatMessage(role: .user, content: outgoing, localImage: imagePath != nil ? image : nil, imagePath: imagePath)
         messages.append(userMsg)
         isTyping = true
         errorMessage = nil
@@ -47,12 +68,14 @@ final class ChatService {
                 forHTTPHeaderField: "apikey"
             )
             let offsetMinutes = TimeZone.current.secondsFromGMT() / 60
-            request.httpBody = try JSONSerialization.data(withJSONObject: [
-                "message": text,
+            var payload: [String: Any] = [
+                "message": outgoing,
                 "conversationId": conversationId.uuidString,
                 "timezone": TimeZone.current.identifier,
                 "timezoneOffsetMinutes": offsetMinutes,
-            ])
+            ]
+            if let imagePath { payload["imagePath"] = imagePath }
+            request.httpBody = try JSONSerialization.data(withJSONObject: payload)
 
             let (asyncBytes, response) = try await URLSession.shared.bytes(for: request)
             let status = (response as? HTTPURLResponse)?.statusCode ?? 0
@@ -139,11 +162,19 @@ final class ChatService {
     func loadHistory(userId: UUID) async {
         let conversationId = await ensureConversation(userId: userId)
 
-        struct MsgRow: Decodable { let role: String; let content: String }
+        struct MsgRow: Decodable {
+            let role: String
+            let content: String
+            let imagePath: String?
+            enum CodingKeys: String, CodingKey {
+                case role, content
+                case imagePath = "image_path"
+            }
+        }
 
         guard let rows = try? await supabase
             .from("messages")
-            .select("role, content")
+            .select("role, content, image_path")
             .eq("conversation_id", value: conversationId.uuidString)
             .order("created_at", ascending: true)
             .limit(50)
@@ -153,7 +184,7 @@ final class ChatService {
 
         messages = rows.compactMap { row in
             guard let role = MessageRole(rawValue: row.role) else { return nil }
-            return ChatMessage(role: role, content: row.content)
+            return ChatMessage(role: role, content: row.content, imagePath: row.imagePath)
         }
     }
 
@@ -187,6 +218,21 @@ struct ChatMessage: Identifiable {
     let id = UUID()
     var role: MessageRole
     var content: String
+    var localImage: UIImage? = nil   // just-sent photo, shown immediately
+    var imagePath: String? = nil     // storage path, for history reloads
 
     var isAva: Bool { role == .assistant }
+}
+
+extension UIImage {
+    // Downscale for upload — keeps chat snappy and vision costs low
+    func resized(maxDimension: CGFloat) -> UIImage {
+        let longest = max(size.width, size.height)
+        guard longest > maxDimension else { return self }
+        let scale = maxDimension / longest
+        let newSize = CGSize(width: size.width * scale, height: size.height * scale)
+        return UIGraphicsImageRenderer(size: newSize).image { _ in
+            draw(in: CGRect(origin: .zero, size: newSize))
+        }
+    }
 }
