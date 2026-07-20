@@ -177,6 +177,13 @@ final class AuthManager {
             .value as Profile {
             userName = profile.name
         }
+
+        // Keep the account's timezone current so scheduled notifications
+        // (morning brief etc.) fire at the user's local time.
+        let tzQuery = try? supabase.from("profiles")
+            .update(["timezone": AnyJSON.string(TimeZone.current.identifier)], returning: .minimal)
+            .eq("id", value: userId.uuidString)
+        _ = try? await tzQuery?.execute()
     }
 
     func signOut() async {

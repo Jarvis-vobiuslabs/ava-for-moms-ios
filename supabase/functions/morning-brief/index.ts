@@ -57,6 +57,19 @@ No punctuation at the end. Just the message text, nothing else.`,
   return res.content[0].type === "text" ? res.content[0].text.trim() : `Good morning ${name}! Ready for today?`
 }
 
+// Current hour (0-23) in the given IANA timezone
+function localHour(tz: string): number {
+  try {
+    return parseInt(new Intl.DateTimeFormat("en-US", {
+      timeZone: tz, hour: "2-digit", hour12: false,
+    }).format(new Date()), 10) % 24
+  } catch {
+    return -1  // bad timezone string — skip rather than spam at wrong times
+  }
+}
+
+const BRIEF_HOUR = 7  // 7am local
+
 serve(async (_req: Request) => {
   try {
     const admin = createClient(
@@ -79,9 +92,13 @@ serve(async (_req: Request) => {
       try {
         // Get profile + incomplete task count
         const [profileRes, tasksRes] = await Promise.all([
-          admin.from("profiles").select("name").eq("id", user_id).single(),
+          admin.from("profiles").select("name, timezone").eq("id", user_id).single(),
           admin.from("tasks").select("id, priority").eq("user_id", user_id).eq("completed", false),
         ])
+
+        // Runs hourly — only notify users for whom it's currently 7am
+        const tz = profileRes.data?.timezone || "UTC"
+        if (localHour(tz) !== BRIEF_HOUR) continue
 
         const name         = profileRes.data?.name ?? "there"
         const tasks        = tasksRes.data ?? []
