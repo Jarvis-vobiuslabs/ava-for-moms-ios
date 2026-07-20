@@ -1,9 +1,12 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2"
 
-// Higgsfield image generation — 10/month per user (all plans).
-// Failed / moderated / timed-out generations are refunded (status 'refunded'
-// doesn't count against the cap) and the user is told to try again.
+// Higgsfield image generation — 10/month per user (all plans), async flow:
+//   POST {prompt}                        → submits, returns {generationId} fast
+//   POST {action:"check", generationId}  → polls Higgsfield once; downloads &
+//                                          stores the image when completed
+// Failed / moderated / expired generations flip to 'refunded' (doesn't count
+// against the cap) and the app tells the user to try again.
 
 const CORS = {
   "Access-Control-Allow-Origin": "*",
@@ -11,6 +14,7 @@ const CORS = {
 }
 const MONTHLY_CAP = 10
 const MODEL = "higgsfield-ai/soul/standard"
+const EXPIRY_MINUTES = 10
 const REFUND_MESSAGE = "Hmm, that image didn't come through — your credit's been refunded, please try again 💛"
 
 function json(obj: unknown, status = 200): Response {
@@ -40,12 +44,8 @@ serve(async (req: Request) => {
     const { data: { user }, error: authError } = await supabase.auth.getUser()
     if (authError || !user) return json({ error: "Unauthorized" }, 401)
 
-    const { prompt } = await req.json()
-    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
-      return json({ error: "prompt required" }, 400)
-    }
+    const body = await req.json()
 
-    // ── Monthly cap ──────────────────────────────────────────────────────
     const monthStart = new Date()
     monthStart.setUTCDate(1)
     monthStart.setUTCHours(0, 0, 0, 0)
@@ -59,6 +59,78 @@ serve(async (req: Request) => {
       return count ?? 0
     }
 
+    const key = Deno.env.get("HIGGSFIELD_API_KEY")!
+    const secret = Deno.env.get("HIGGSFIELD_SECRET")!
+    const hfAuth = { "Authorization": `Key ${key}:${secret}` }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // action: "check" — poll one pending generation
+    // ─────────────────────────────────────────────────────────────────────
+    if (body.action === "check") {
+      const genId = body.generationId
+      if (!genId) return json({ error: "generationId required" }, 400)
+
+      const { data: row } = await admin.from("image_generations")
+        .select("id, user_id, status, image_path, hf_request_id, created_at")
+        .eq("id", genId)
+        .single()
+      if (!row || row.user_id !== user.id) return json({ error: "not found" }, 404)
+
+      if (row.status === "completed" && row.image_path) {
+        return json({ imagePath: row.image_path, remaining: MONTHLY_CAP - await usedCount() })
+      }
+      if (row.status === "refunded") {
+        return json({ error: "rejected", message: REFUND_MESSAGE, remaining: MONTHLY_CAP - await usedCount() })
+      }
+
+      const refund = async (): Promise<Response> => {
+        await admin.from("image_generations").update({ status: "refunded" }).eq("id", genId)
+        return json({ error: "rejected", message: REFUND_MESSAGE, remaining: MONTHLY_CAP - await usedCount() })
+      }
+
+      if (!row.hf_request_id) return await refund()
+
+      const st = await fetch(`https://platform.higgsfield.ai/requests/${row.hf_request_id}/status`, { headers: hfAuth })
+      if (st.ok) {
+        const s = await st.json()
+        if (s.status === "nsfw" || s.status === "failed") return await refund()
+        if (s.status === "completed") {
+          const imageUrl = s.images?.[0]?.url
+          if (!imageUrl) return await refund()
+
+          const imgRes = await fetch(imageUrl)
+          if (!imgRes.ok) return await refund()
+          const contentType = imgRes.headers.get("content-type") ?? "image/jpeg"
+          const ext = contentType.includes("png") ? "png" : "jpg"
+          const path = `${user.id}/gen-${genId}.${ext}`
+          const blob = new Blob([await imgRes.arrayBuffer()], { type: contentType })
+          const { error: upErr } = await admin.storage.from("chat-images")
+            .upload(path, blob, { contentType, upsert: true })
+          if (upErr) {
+            console.error("storage upload failed:", upErr.message)
+            return await refund()
+          }
+          await admin.from("image_generations")
+            .update({ status: "completed", image_path: path })
+            .eq("id", genId)
+          return json({ imagePath: path, remaining: MONTHLY_CAP - await usedCount() })
+        }
+      }
+
+      // Still queued / in progress — give up only after the expiry window
+      const ageMinutes = (Date.now() - new Date(row.created_at).getTime()) / 60000
+      if (ageMinutes > EXPIRY_MINUTES) return await refund()
+      return json({ status: "pending" })
+    }
+
+    // ─────────────────────────────────────────────────────────────────────
+    // default — submit a new generation
+    // ─────────────────────────────────────────────────────────────────────
+    const prompt = body.prompt
+    if (!prompt || typeof prompt !== "string" || !prompt.trim()) {
+      return json({ error: "prompt required" }, 400)
+    }
+
     if (await usedCount() >= MONTHLY_CAP) {
       return json({
         error: "limit",
@@ -67,22 +139,12 @@ serve(async (req: Request) => {
       })
     }
 
-    // ── Record the attempt, then generate ────────────────────────────────
     const { data: genRow, error: insErr } = await admin.from("image_generations")
       .insert({ user_id: user.id, prompt: prompt.trim(), status: "queued" })
       .select("id")
       .single()
     if (insErr || !genRow) return json({ error: "could not record generation" }, 500)
     const genId = genRow.id
-
-    const refund = async (message: string): Promise<Response> => {
-      await admin.from("image_generations").update({ status: "refunded" }).eq("id", genId)
-      return json({ error: "rejected", message, remaining: MONTHLY_CAP - await usedCount() })
-    }
-
-    const key = Deno.env.get("HIGGSFIELD_API_KEY")!
-    const secret = Deno.env.get("HIGGSFIELD_SECRET")!
-    const hfAuth = { "Authorization": `Key ${key}:${secret}` }
 
     const submit = await fetch(`https://platform.higgsfield.ai/${MODEL}`, {
       method: "POST",
@@ -91,49 +153,18 @@ serve(async (req: Request) => {
     })
     if (!submit.ok) {
       console.error("higgsfield submit failed:", submit.status, await submit.text())
-      return await refund(REFUND_MESSAGE)
+      await admin.from("image_generations").update({ status: "refunded" }).eq("id", genId)
+      return json({ error: "rejected", message: REFUND_MESSAGE, remaining: MONTHLY_CAP - await usedCount() })
     }
     const submitData = await submit.json()
     const requestId = submitData.request_id ?? submitData.id
-    if (!requestId) return await refund(REFUND_MESSAGE)
-
-    // ── Poll until completed / failed / timeout ──────────────────────────
-    let imageUrl: string | null = null
-    const deadline = Date.now() + 110_000
-    while (Date.now() < deadline) {
-      await new Promise((r) => setTimeout(r, 2500))
-      const st = await fetch(`https://platform.higgsfield.ai/requests/${requestId}/status`, { headers: hfAuth })
-      if (!st.ok) continue
-      const s = await st.json()
-      if (s.status === "completed") {
-        imageUrl = s.images?.[0]?.url ?? null
-        break
-      }
-      if (s.status === "nsfw" || s.status === "failed") {
-        return await refund(REFUND_MESSAGE)
-      }
-    }
-    if (!imageUrl) return await refund(REFUND_MESSAGE)
-
-    // ── Store in the user's private folder ───────────────────────────────
-    const imgRes = await fetch(imageUrl)
-    if (!imgRes.ok) return await refund(REFUND_MESSAGE)
-    const contentType = imgRes.headers.get("content-type") ?? "image/jpeg"
-    const ext = contentType.includes("png") ? "png" : "jpg"
-    const path = `${user.id}/gen-${genId}.${ext}`
-    const blob = new Blob([await imgRes.arrayBuffer()], { type: contentType })
-    const { error: upErr } = await admin.storage.from("chat-images")
-      .upload(path, blob, { contentType, upsert: true })
-    if (upErr) {
-      console.error("storage upload failed:", upErr.message)
-      return await refund(REFUND_MESSAGE)
+    if (!requestId) {
+      await admin.from("image_generations").update({ status: "refunded" }).eq("id", genId)
+      return json({ error: "rejected", message: REFUND_MESSAGE, remaining: MONTHLY_CAP - await usedCount() })
     }
 
-    await admin.from("image_generations")
-      .update({ status: "completed", image_path: path })
-      .eq("id", genId)
-
-    return json({ imagePath: path, remaining: MONTHLY_CAP - await usedCount() })
+    await admin.from("image_generations").update({ hf_request_id: requestId }).eq("id", genId)
+    return json({ generationId: genId, remaining: MONTHLY_CAP - await usedCount() })
   } catch (err) {
     console.error("generate-image error:", err)
     return json({ error: String(err) }, 500)

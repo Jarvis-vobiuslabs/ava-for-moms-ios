@@ -15,6 +15,7 @@ struct ImageGenView: View {
     @State private var remaining: Int?
     @State private var statusMessage: String?
     @State private var saved = false
+    @State private var showGenHistory = false
     @FocusState private var promptFocused: Bool
 
     private let ideas: [(emoji: String, label: String, prompt: String)] = [
@@ -49,6 +50,14 @@ struct ImageGenView: View {
                             }
                         }
                         Spacer()
+                        Button { showGenHistory = true } label: {
+                            Circle().fill(AvaTheme.cream).frame(width: 36, height: 36)
+                                .overlay(Image(systemName: "photo.stack")
+                                    .font(.system(size: 13, weight: .semibold))
+                                    .foregroundStyle(AvaTheme.inkMute))
+                        }
+                        .contentShape(Rectangle())
+                        .buttonStyle(.plain)
                         Button { dismiss() } label: {
                             Circle().fill(AvaTheme.cream).frame(width: 36, height: 36)
                                 .overlay(Image(systemName: "xmark")
@@ -187,6 +196,21 @@ struct ImageGenView: View {
                             .contentShape(Rectangle())
                             .buttonStyle(.plain)
                             .disabled(!canGenerate)
+
+                            // Grey placeholder while the image is being made
+                            if isGenerating {
+                                RoundedRectangle(cornerRadius: 22)
+                                    .fill(Color(hex: "E7E1DA"))
+                                    .frame(height: 300)
+                                    .overlay(
+                                        VStack(spacing: 10) {
+                                            ProgressView().tint(AvaTheme.inkMute)
+                                            Text("Loading…")
+                                                .font(AvaTheme.font(14, weight: .bold))
+                                                .foregroundStyle(AvaTheme.inkMute)
+                                        }
+                                    )
+                            }
                         }
                         .padding(.horizontal, 18)
                     }
@@ -208,6 +232,9 @@ struct ImageGenView: View {
             }
         }
         .task { await loadRemaining() }
+        .sheet(isPresented: $showGenHistory) {
+            GenHistoryView().environment(auth)
+        }
     }
 
     private var canGenerate: Bool {
@@ -218,6 +245,32 @@ struct ImageGenView: View {
 
     // MARK: - Generate
 
+    private struct GenResponse: Decodable {
+        let generationId: String?
+        let imagePath: String?
+        let remaining: Int?
+        let status: String?
+        let error: String?
+        let message: String?
+    }
+
+    private func callFunction(_ payload: [String: Any]) async throws -> GenResponse {
+        let session = try await supabase.auth.session
+        var request = URLRequest(
+            url: URL(string: "https://syhzfjrvbrqrsesxubtx.supabase.co/functions/v1/generate-image")!
+        )
+        request.httpMethod = "POST"
+        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(
+            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5aHpmanJ2YnJxcnNlc3h1YnR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTEwOTYsImV4cCI6MjA5MzY2NzA5Nn0.6vXXbQkc0R7GdO3F8lES6bqnoxC5rgaBzaYz3R8t1Dg",
+            forHTTPHeaderField: "apikey"
+        )
+        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+        let (data, _) = try await URLSession.shared.data(for: request)
+        return try JSONDecoder().decode(GenResponse.self, from: data)
+    }
+
     private func generate() {
         promptFocused = false
         statusMessage = nil
@@ -225,45 +278,42 @@ struct ImageGenView: View {
         _Concurrency.Task {
             defer { isGenerating = false }
             do {
-                let session = try await supabase.auth.session
-                var request = URLRequest(
-                    url: URL(string: "https://syhzfjrvbrqrsesxubtx.supabase.co/functions/v1/generate-image")!
-                )
-                request.httpMethod = "POST"
-                request.timeoutInterval = 150
-                request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-                request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-                request.setValue(
-                    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5aHpmanJ2YnJxcnNlc3h1YnR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTEwOTYsImV4cCI6MjA5MzY2NzA5Nn0.6vXXbQkc0R7GdO3F8lES6bqnoxC5rgaBzaYz3R8t1Dg",
-                    forHTTPHeaderField: "apikey"
-                )
-                request.httpBody = try JSONSerialization.data(withJSONObject: [
+                // Submit — returns immediately with a generation id
+                let submitted = try await callFunction([
                     "prompt": prompt.trimmingCharacters(in: .whitespacesAndNewlines),
                 ])
-
-                let (data, _) = try await URLSession.shared.data(for: request)
-                struct GenResponse: Decodable {
-                    let imagePath: String?
-                    let remaining: Int?
-                    let error: String?
-                    let message: String?
+                if let r = submitted.remaining { remaining = r }
+                guard let genId = submitted.generationId else {
+                    statusMessage = submitted.message ?? "Something went wrong — please try again"
+                    return
                 }
-                let result = try JSONDecoder().decode(GenResponse.self, from: data)
-                if let r = result.remaining { remaining = r }
 
-                if let path = result.imagePath {
-                    let url = try await supabase.storage.from("chat-images")
-                        .createSignedURL(path: path, expiresIn: 3600)
-                    let (imgData, _) = try await URLSession.shared.data(from: url)
-                    if let img = UIImage(data: imgData) {
-                        resultImage = img
-                        saved = false
-                    } else {
-                        statusMessage = "Couldn't load the image — please try again"
+                // Poll until the image is ready (Higgsfield queues can take a
+                // few minutes; the server refunds automatically after 10)
+                for _ in 0..<90 {
+                    try await _Concurrency.Task.sleep(nanoseconds: 4_000_000_000)
+                    let check = try await callFunction(["action": "check", "generationId": genId])
+                    if let r = check.remaining { remaining = r }
+
+                    if let path = check.imagePath {
+                        let url = try await supabase.storage.from("chat-images")
+                            .createSignedURL(path: path, expiresIn: 3600)
+                        let (imgData, _) = try await URLSession.shared.data(from: url)
+                        if let img = UIImage(data: imgData) {
+                            resultImage = img
+                            saved = false
+                        } else {
+                            statusMessage = "Couldn't load the image — please try again"
+                        }
+                        return
                     }
-                } else {
-                    statusMessage = result.message ?? "Something went wrong — please try again"
+                    if check.error != nil {
+                        statusMessage = check.message ?? "Something went wrong — please try again"
+                        return
+                    }
+                    // status == "pending" → keep waiting
                 }
+                statusMessage = "Still working on it — check History in a minute 💛"
             } catch {
                 statusMessage = "Something went wrong — please try again"
             }
@@ -287,6 +337,159 @@ struct ImageGenView: View {
             .execute()
             .count
         remaining = max(0, 10 - (count ?? 0))
+    }
+}
+
+// MARK: - Generation history gallery
+
+struct GenHistoryView: View {
+    @Environment(AuthManager.self) private var auth
+    @Environment(\.dismiss) private var dismiss
+
+    @State private var items: [GenItem] = []
+    @State private var isLoading = true
+
+    struct GenItem: Identifiable, Decodable {
+        let id: UUID
+        let prompt: String
+        let imagePath: String
+        let createdAt: Date
+        enum CodingKeys: String, CodingKey {
+            case id, prompt
+            case imagePath = "image_path"
+            case createdAt = "created_at"
+        }
+    }
+
+    var body: some View {
+        ZStack {
+            AvaTheme.bg.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                HStack {
+                    Text("Your Creations")
+                        .font(AvaTheme.font(24, weight: .heavy))
+                        .foregroundStyle(AvaTheme.ink)
+                        .tracking(-0.5)
+                    Spacer()
+                    Button { dismiss() } label: {
+                        Circle().fill(AvaTheme.cream).frame(width: 36, height: 36)
+                            .overlay(Image(systemName: "xmark")
+                                .font(.system(size: 12, weight: .bold))
+                                .foregroundStyle(AvaTheme.inkMute))
+                    }
+                    .contentShape(Rectangle())
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 22)
+                .padding(.top, 26)
+                .padding(.bottom, 14)
+
+                if isLoading {
+                    Spacer(); ProgressView().tint(AvaTheme.terracotta); Spacer()
+                } else if items.isEmpty {
+                    Spacer()
+                    VStack(spacing: 10) {
+                        Text("🎨").font(.system(size: 40))
+                        Text("Nothing here yet")
+                            .font(AvaTheme.font(17, weight: .heavy))
+                            .foregroundStyle(AvaTheme.ink)
+                        Text("Images Ava creates for you will be saved here.")
+                            .font(AvaTheme.font(13.5, weight: .medium))
+                            .foregroundStyle(AvaTheme.inkMute)
+                    }
+                    Spacer()
+                } else {
+                    ScrollView {
+                        LazyVStack(spacing: 16) {
+                            ForEach(items) { item in
+                                GenHistoryRow(item: item)
+                            }
+                            Spacer().frame(height: 30)
+                        }
+                        .padding(.horizontal, 18)
+                    }
+                }
+            }
+        }
+        .task { await load() }
+    }
+
+    private func load() async {
+        guard let userId = auth.currentUserId else { isLoading = false; return }
+        items = (try? await supabase.from("image_generations")
+            .select("id, prompt, image_path, created_at")
+            .eq("user_id", value: userId.uuidString)
+            .eq("status", value: "completed")
+            .not("image_path", operator: .is, value: "null")
+            .order("created_at", ascending: false)
+            .limit(50)
+            .execute()
+            .value as [GenItem]) ?? []
+        isLoading = false
+    }
+}
+
+private struct GenHistoryRow: View {
+    let item: GenHistoryView.GenItem
+    @State private var image: UIImage?
+    @State private var saved = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Group {
+                if let image {
+                    Image(uiImage: image)
+                        .resizable()
+                        .scaledToFit()
+                        .clipShape(RoundedRectangle(cornerRadius: 20))
+                } else {
+                    RoundedRectangle(cornerRadius: 20)
+                        .fill(Color(hex: "E7E1DA"))
+                        .frame(height: 260)
+                        .overlay(ProgressView().tint(AvaTheme.inkMute))
+                }
+            }
+
+            HStack(alignment: .top, spacing: 10) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(item.prompt)
+                        .font(AvaTheme.font(12.5, weight: .medium))
+                        .foregroundStyle(AvaTheme.inkMute)
+                        .lineLimit(2)
+                    Text(item.createdAt.formatted(.dateTime.month(.abbreviated).day()))
+                        .font(AvaTheme.font(11, weight: .semibold))
+                        .foregroundStyle(AvaTheme.inkSoft)
+                }
+                Spacer()
+                Button {
+                    guard let image else { return }
+                    UIImageWriteToSavedPhotosAlbum(image, nil, nil, nil)
+                    saved = true
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: saved ? "checkmark" : "square.and.arrow.down")
+                            .font(.system(size: 12, weight: .bold))
+                        Text(saved ? "Saved" : "Save")
+                            .font(AvaTheme.font(12.5, weight: .heavy))
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 14).padding(.vertical, 9)
+                    .background(Capsule().fill(saved ? AnyShapeStyle(AvaTheme.sageDeep) : AnyShapeStyle(AvaTheme.blushTerracotta)))
+                }
+                .contentShape(Rectangle())
+                .buttonStyle(.plain)
+                .disabled(image == nil)
+            }
+        }
+        .task {
+            if image == nil,
+               let url = try? await supabase.storage.from("chat-images")
+                   .createSignedURL(path: item.imagePath, expiresIn: 3600),
+               let (data, _) = try? await URLSession.shared.data(from: url) {
+                image = UIImage(data: data)
+            }
+        }
     }
 }
 
