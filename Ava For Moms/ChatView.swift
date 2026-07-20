@@ -1,4 +1,5 @@
 import SwiftUI
+import Supabase
 import PhotosUI
 
 struct ChatView: View {
