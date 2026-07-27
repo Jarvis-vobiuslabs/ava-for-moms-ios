@@ -5,6 +5,50 @@ import Supabase
 // Failed/moderated generations are refunded server-side and the user is
 // prompted to try again.
 
+// MARK: - Shared generate-image function client
+
+fileprivate struct GenResponse: Decodable {
+    let generationId: String?
+    let imagePath: String?
+    let remaining: Int?
+    let status: String?
+    let error: String?
+    let message: String?
+}
+
+fileprivate func genFunctionCall(_ payload: [String: Any]) async throws -> GenResponse {
+    let session = try await supabase.auth.session
+    var request = URLRequest(
+        url: URL(string: "https://syhzfjrvbrqrsesxubtx.supabase.co/functions/v1/generate-image")!
+    )
+    request.httpMethod = "POST"
+    request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue(
+        "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5aHpmanJ2YnJxcnNlc3h1YnR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTEwOTYsImV4cCI6MjA5MzY2NzA5Nn0.6vXXbQkc0R7GdO3F8lES6bqnoxC5rgaBzaYz3R8t1Dg",
+        forHTTPHeaderField: "apikey"
+    )
+    request.httpBody = try JSONSerialization.data(withJSONObject: payload)
+    let (data, _) = try await URLSession.shared.data(for: request)
+    return try JSONDecoder().decode(GenResponse.self, from: data)
+}
+
+// Resolve generations that were still cooking when the user left the screen:
+// asking the server to "check" finishes the download+store (or refund) even
+// though nobody was polling. Called whenever the studio or gallery opens.
+fileprivate func healPendingGenerations(userId: UUID) async {
+    struct Row: Decodable { let id: UUID }
+    let rows: [Row] = (try? await supabase.from("image_generations")
+        .select("id")
+        .eq("user_id", value: userId.uuidString)
+        .eq("status", value: "queued")
+        .execute()
+        .value as [Row]) ?? []
+    for row in rows {
+        _ = try? await genFunctionCall(["action": "check", "generationId": row.id.uuidString])
+    }
+}
+
 struct ImageGenView: View {
     @Environment(AuthManager.self) private var auth
     @Environment(\.dismiss) private var dismiss
@@ -208,6 +252,10 @@ struct ImageGenView: View {
                                             Text("Loading…")
                                                 .font(AvaTheme.font(14, weight: .bold))
                                                 .foregroundStyle(AvaTheme.inkMute)
+                                            Text("You can close this — finished images\nappear in your gallery ✨")
+                                                .font(AvaTheme.font(12, weight: .medium))
+                                                .foregroundStyle(AvaTheme.inkSoft)
+                                                .multilineTextAlignment(.center)
                                         }
                                     )
                             }
@@ -231,7 +279,14 @@ struct ImageGenView: View {
                 }
             }
         }
-        .task { await loadRemaining() }
+        .task {
+            // Finish any generations left cooking from a previous visit,
+            // then show the accurate remaining count
+            if let userId = auth.currentUserId {
+                await healPendingGenerations(userId: userId)
+            }
+            await loadRemaining()
+        }
         .sheet(isPresented: $showGenHistory) {
             GenHistoryView().environment(auth)
         }
@@ -245,32 +300,6 @@ struct ImageGenView: View {
 
     // MARK: - Generate
 
-    private struct GenResponse: Decodable {
-        let generationId: String?
-        let imagePath: String?
-        let remaining: Int?
-        let status: String?
-        let error: String?
-        let message: String?
-    }
-
-    private func callFunction(_ payload: [String: Any]) async throws -> GenResponse {
-        let session = try await supabase.auth.session
-        var request = URLRequest(
-            url: URL(string: "https://syhzfjrvbrqrsesxubtx.supabase.co/functions/v1/generate-image")!
-        )
-        request.httpMethod = "POST"
-        request.setValue("Bearer \(session.accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(
-            "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InN5aHpmanJ2YnJxcnNlc3h1YnR4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgwOTEwOTYsImV4cCI6MjA5MzY2NzA5Nn0.6vXXbQkc0R7GdO3F8lES6bqnoxC5rgaBzaYz3R8t1Dg",
-            forHTTPHeaderField: "apikey"
-        )
-        request.httpBody = try JSONSerialization.data(withJSONObject: payload)
-        let (data, _) = try await URLSession.shared.data(for: request)
-        return try JSONDecoder().decode(GenResponse.self, from: data)
-    }
-
     private func generate() {
         promptFocused = false
         statusMessage = nil
@@ -279,7 +308,7 @@ struct ImageGenView: View {
             defer { isGenerating = false }
             do {
                 // Submit — returns immediately with a generation id
-                let submitted = try await callFunction([
+                let submitted = try await genFunctionCall([
                     "prompt": prompt.trimmingCharacters(in: .whitespacesAndNewlines),
                 ])
                 if let r = submitted.remaining { remaining = r }
@@ -292,7 +321,7 @@ struct ImageGenView: View {
                 // few minutes; the server refunds automatically after 10)
                 for _ in 0..<90 {
                     try await _Concurrency.Task.sleep(nanoseconds: 4_000_000_000)
-                    let check = try await callFunction(["action": "check", "generationId": genId])
+                    let check = try await genFunctionCall(["action": "check", "generationId": genId])
                     if let r = check.remaining { remaining = r }
 
                     if let path = check.imagePath {
@@ -417,6 +446,8 @@ struct GenHistoryView: View {
 
     private func load() async {
         guard let userId = auth.currentUserId else { isLoading = false; return }
+        // Deliver anything that finished while no screen was watching
+        await healPendingGenerations(userId: userId)
         items = (try? await supabase.from("image_generations")
             .select("id, prompt, image_path, created_at")
             .eq("user_id", value: userId.uuidString)

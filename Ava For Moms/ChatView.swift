@@ -210,6 +210,8 @@ struct ChatView: View {
                 }
                 .padding(.horizontal, 18).padding(.top, 10).padding(.bottom, 20)
             }
+            // Drag down on the conversation to tuck the keyboard away
+            .scrollDismissesKeyboard(.interactively)
             .onChange(of: chatService.messages.count) { _, _ in
                 proxy.scrollTo("bottom", anchor: .bottom)
             }

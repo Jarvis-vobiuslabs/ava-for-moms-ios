@@ -72,8 +72,8 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 ## Version 1.2 (Nathan's notes, July 22)
 
 ### Bugs / quick fixes
-- [ ] **18. Chat: swipe down to dismiss keyboard** — keyboard currently locked
-  until back arrow. Fix: interactive scroll dismissal on the message list.
+- [x] **18. Chat: swipe down to dismiss keyboard** — done July 22:
+  interactive scroll dismissal on the message list.
 - [x] **19. Tasks due tomorrow show on today's list** — fixed July 22:
   TaskStore partitions by due_date (today = undated/today/overdue); new
   "Upcoming" section on the To-do page with due dates shown.
@@ -82,11 +82,10 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   things use all_day) and the app now shows "All day" instead of 12:00 AM.
 - [ ] **21. Account rows: full pill clickable** — contentShape needs to be on
   the button LABEL (inside), not the button; arrow/text-only tap area now.
-- [ ] **22. Art Studio delivery when screen closed** — generations strand in
-  'queued' if the user leaves before completion (= second-account bug from
-  testing). Fix: resolve pending generations whenever Art Studio or the
-  gallery opens; add loading subtext "finished images appear in your
-  gallery". Heals the 3 stranded generations retroactively.
+- [x] **22. Art Studio delivery when screen closed** — done July 22: opening
+  the studio or gallery resolves any pending generations server-side (also
+  rescues the stranded test images); loading square now says finished
+  images appear in the gallery. (Push notification deliberately skipped.)
 
 ### Features
 - [x] **23. Notes: delete button** — done July 22: visible trash button on
