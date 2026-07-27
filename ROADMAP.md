@@ -68,6 +68,34 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   kid's name", "birthday card"). Must support saving/downloading the image
   to Photos. Per-user monthly counter like #16.
 
+
+## Version 1.2 (Nathan's notes, July 22)
+
+### Bugs / quick fixes
+- [ ] **18. Chat: swipe down to dismiss keyboard** — keyboard currently locked
+  until back arrow. Fix: interactive scroll dismissal on the message list.
+- [ ] **19. Tasks due tomorrow show on today's list** — tasks now carry
+  due_date but Home "Today's focus" and TasksView ignore it. Filter to
+  due today / overdue / undated; upcoming tasks get their own section.
+- [ ] **20. Events with no time default to midnight → default 8am instead** —
+  backend prompt fix (appointment-style events default 08:00; true all-day
+  events flagged all_day) + app should display "All day" not "12:00 AM".
+- [ ] **21. Account rows: full pill clickable** — contentShape needs to be on
+  the button LABEL (inside), not the button; arrow/text-only tap area now.
+- [ ] **22. Art Studio delivery when screen closed** — generations strand in
+  'queued' if the user leaves before completion (= second-account bug from
+  testing). Fix: resolve pending generations whenever Art Studio or the
+  gallery opens; add loading subtext "finished images appear in your
+  gallery". Heals the 3 stranded generations retroactively.
+
+### Features
+- [ ] **23. Notes: delete button** — no way to remove a note today.
+- [ ] **24. Grocery: multiple lists + clear buttons** — schema already
+  supports lists (grocery_lists). UI: list switcher, new/rename/archive,
+  "clear checked items" and "clear all" actions.
+- [ ] **25. Calendar upgrades** — month picker dropdown, "back to today"
+  button, and dots on days that have events in month view.
+
 ## Done
 
 - [x] Fix silent memory-save failure (missing unique constraint) — July 14, 2026
