@@ -117,6 +117,8 @@ private struct NoteCard: View {
     let onTap: () -> Void
     let onDelete: () -> Void
 
+    @State private var showDeleteConfirm = false
+
     var body: some View {
         Button(action: onTap) {
             HStack(alignment: .top, spacing: 14) {
@@ -131,6 +133,8 @@ private struct NoteCard: View {
                         Text(note.createdAt.formatted(.dateTime.month(.abbreviated).day()))
                             .font(AvaTheme.font(11, weight: .medium))
                             .foregroundStyle(AvaTheme.inkSoft)
+                            // Leave room for the trash button below the date
+                            .padding(.trailing, 30)
                     }
                     if !note.content.isEmpty {
                         Text(note.content)
@@ -152,6 +156,22 @@ private struct NoteCard: View {
         }
         .contentShape(Rectangle())
         .buttonStyle(.plain)
+        // Visible delete — swipe still works, but this is discoverable
+        .overlay(alignment: .topTrailing) {
+            Button { showDeleteConfirm = true } label: {
+                Circle().fill(AvaTheme.bgDeep).frame(width: 30, height: 30)
+                    .overlay(Image(systemName: "trash")
+                        .font(.system(size: 12, weight: .semibold))
+                        .foregroundStyle(Color(hex: "C0392B")))
+            }
+            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .padding(10)
+        }
+        .confirmationDialog("Delete this note?", isPresented: $showDeleteConfirm, titleVisibility: .visible) {
+            Button("Delete", role: .destructive, action: onDelete)
+            Button("Cancel", role: .cancel) {}
+        }
         .swipeActions(edge: .trailing) {
             Button(role: .destructive, action: onDelete) {
                 Label("Delete", systemImage: "trash")

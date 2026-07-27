@@ -86,6 +86,25 @@ struct TasksView: View {
                         .padding(.horizontal, 18)
                     }
 
+                    // ── Upcoming (due after today) ────────────────────────
+                    if !store.upcoming.isEmpty {
+                        sectionHeader("📅 UPCOMING", color: AvaTheme.inkMute)
+                        VStack(spacing: 8) {
+                            ForEach(store.upcoming) { task in
+                                HStack(spacing: 0) {
+                                    taskRow(task, isUrgent: false)
+                                    if let due = task.dueDate {
+                                        Text(due.formatted(.dateTime.weekday(.abbreviated).month(.abbreviated).day()))
+                                            .font(AvaTheme.font(11, weight: .bold))
+                                            .foregroundStyle(AvaTheme.inkSoft)
+                                            .padding(.leading, 6)
+                                    }
+                                }
+                            }
+                        }
+                        .padding(.horizontal, 18)
+                    }
+
                     // ── Empty state ───────────────────────────────────────
                     if store.urgent.isEmpty && store.normal.isEmpty && !store.isLoading {
                         VStack(spacing: 12) {

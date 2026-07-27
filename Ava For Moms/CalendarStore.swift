@@ -13,11 +13,12 @@ struct AvaCalendarEvent: Identifiable {
     let color: Color
     let source: Source
     var ekEventID: String?  // EventKit identifier if from native calendar
+    var allDay: Bool = false
 
     enum Source { case ava, eventKit }
 
     var timeString: String {
-        startsAt.formatted(.dateTime.hour().minute())
+        allDay ? "All day" : startsAt.formatted(.dateTime.hour().minute())
     }
 }
 
@@ -72,18 +73,20 @@ final class CalendarStore {
             let startsAt: Date
             let endsAt: Date?
             let colorHex: String?
+            let allDay: Bool?
             enum CodingKeys: String, CodingKey {
                 case id, title, detail
                 case startsAt  = "starts_at"
                 case endsAt    = "ends_at"
                 case colorHex  = "color_hex"
+                case allDay    = "all_day"
             }
         }
 
         let formatter = ISO8601DateFormatter()
         let rows: [EventRow] = (try? await supabase
             .from("calendar_events")
-            .select("id, title, detail, starts_at, ends_at, color_hex")
+            .select("id, title, detail, starts_at, ends_at, color_hex, all_day")
             .eq("user_id", value: userId.uuidString)
             .gte("starts_at", value: formatter.string(from: weekStart))
             .lte("starts_at", value: formatter.string(from: weekEnd))
@@ -115,7 +118,8 @@ final class CalendarStore {
                     endsAt: ek.endDate,
                     color: Color(cgColor: ek.calendar.cgColor),
                     source: .eventKit,
-                    ekEventID: ekId
+                    ekEventID: ekId,
+                    allDay: ek.isAllDay
                 ))
             }
         }
@@ -158,7 +162,8 @@ final class CalendarStore {
                 startsAt: row.startsAt,
                 endsAt: row.endsAt,
                 color: color,
-                source: .ava
+                source: .ava,
+                allDay: row.allDay ?? false
             ))
         }
 

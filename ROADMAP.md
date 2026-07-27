@@ -74,12 +74,12 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 ### Bugs / quick fixes
 - [ ] **18. Chat: swipe down to dismiss keyboard** — keyboard currently locked
   until back arrow. Fix: interactive scroll dismissal on the message list.
-- [ ] **19. Tasks due tomorrow show on today's list** — tasks now carry
-  due_date but Home "Today's focus" and TasksView ignore it. Filter to
-  due today / overdue / undated; upcoming tasks get their own section.
-- [ ] **20. Events with no time default to midnight → default 8am instead** —
-  backend prompt fix (appointment-style events default 08:00; true all-day
-  events flagged all_day) + app should display "All day" not "12:00 AM".
+- [x] **19. Tasks due tomorrow show on today's list** — fixed July 22:
+  TaskStore partitions by due_date (today = undated/today/overdue); new
+  "Upcoming" section on the To-do page with due dates shown.
+- [x] **20. Events with no time default to midnight → 8am** — done July 22:
+  chat prompt deployed (appointments default 8am, never midnight; whole-day
+  things use all_day) and the app now shows "All day" instead of 12:00 AM.
 - [ ] **21. Account rows: full pill clickable** — contentShape needs to be on
   the button LABEL (inside), not the button; arrow/text-only tap area now.
 - [ ] **22. Art Studio delivery when screen closed** — generations strand in
@@ -89,7 +89,8 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   gallery". Heals the 3 stranded generations retroactively.
 
 ### Features
-- [ ] **23. Notes: delete button** — no way to remove a note today.
+- [x] **23. Notes: delete button** — done July 22: visible trash button on
+  every note card with confirm dialog (swipe-to-delete kept).
 - [ ] **24. Grocery: multiple lists + clear buttons** — schema already
   supports lists (grocery_lists). UI: list switcher, new/rename/archive,
   "clear checked items" and "clear all" actions.

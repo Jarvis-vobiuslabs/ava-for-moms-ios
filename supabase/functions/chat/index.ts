@@ -14,12 +14,12 @@ const anthropic = new Anthropic({ apiKey: Deno.env.get("ANTHROPIC_API_KEY")! })
 const TOOLS: Anthropic.Tool[] = [
   {
     name: "add_calendar_event",
-    description: "Add an event to the user's Ava calendar. Use this when the user asks Ava to schedule, book, or add something to their calendar. If the user gives a day but no time, create an all-day event rather than asking for a time.",
+    description: "Add an event to the user's Ava calendar. Use this when the user asks Ava to schedule, book, or add something to their calendar. Never ask for a time: if the user gives a day but no time, use all_day: true only for whole-day things (birthdays, holidays, school spirit days); for anything appointment-like default starts_at to 08:00 that day — never midnight.",
     input_schema: {
       type: "object",
       properties: {
         title:     { type: "string", description: "Event title" },
-        starts_at: { type: "string", description: "Start time in ISO 8601 format, e.g. 2026-05-24T14:00:00Z. For all-day events use midnight, e.g. 2026-05-24T00:00:00" },
+        starts_at: { type: "string", description: "Start time in ISO 8601 format, e.g. 2026-05-24T14:00:00. All-day events use midnight; timed events with no stated time default to 08:00" },
         ends_at:   { type: "string", description: "Optional end time in ISO 8601 format. Defaults to one hour after start" },
         all_day:   { type: "boolean", description: "True when the user gave a day but no specific time (birthdays, holidays, 'sometime tomorrow')" },
         detail:    { type: "string", description: "Optional notes or location" }
@@ -579,7 +579,7 @@ function buildSystemPrompt(profile: any, memories: any[], notes: any[], timezone
     "Use save_note when the user shares a password, PIN, important location, or anything they want to remember.",
     "After using a tool, confirm briefly what you did in a warm, natural way.",
     "IMPORTANT: Always use the user's local time when setting starts_at and ends_at. Include the UTC offset in the ISO 8601 string (e.g. " + isoExample + "). Never use UTC (Z suffix) unless the user explicitly says UTC.",
-    "NEVER refuse or ask for a time just because the user didn't give one. No date mentioned: add the task with due_date = today. A day but no time (birthday, 'sometime Friday'): create an all-day event. Only ask a follow-up question when the request is genuinely ambiguous about WHICH day.",
+    "NEVER refuse or ask for a time just because the user didn't give one. No date mentioned: add the task with due_date = today. A day but no time: whole-day things (birthdays, holidays) become all-day events; appointment-style things (dentist, calls, errands) default to 8:00 AM that day — NEVER schedule anything at midnight. Only ask a follow-up question when the request is genuinely ambiguous about WHICH day.",
     "",
     "## What you can help with",
     "Calendar, tasks, grocery lists, meal ideas, family scheduling, managing the mental load, reminders, and just being there.",

@@ -9,11 +9,13 @@ struct AvaTask: Identifiable {
     var note: String?
     var priority: String   // "urgent" | "normal" | "low"
     var completed: Bool
+    var dueDate: Date? = nil
 }
 
 extension AvaTask: Decodable {
     enum CodingKeys: String, CodingKey {
         case id, title, note, priority, completed
+        case dueDate = "due_date"
     }
 }
 
@@ -22,12 +24,13 @@ extension AvaTask: Decodable {
 @Observable
 final class TaskStore {
 
-    var urgent: [AvaTask] = []
-    var normal: [AvaTask] = []
-    var done:   [AvaTask] = []
+    var urgent:   [AvaTask] = []
+    var normal:   [AvaTask] = []
+    var upcoming: [AvaTask] = []   // due after today — not part of today's focus
+    var done:     [AvaTask] = []
     var isLoading = false
 
-    var totalCount: Int { urgent.count + normal.count + done.count }
+    var totalCount: Int { urgent.count + normal.count + upcoming.count + done.count }
     var doneCount:  Int { done.count }
 
     // MARK: - Load
@@ -38,14 +41,20 @@ final class TaskStore {
 
         if let incomplete = try? await supabase
             .from("tasks")
-            .select("id, title, note, priority, completed")
+            .select("id, title, note, priority, completed, due_date")
             .eq("user_id", value: userId.uuidString)
             .eq("completed", value: false)
             .order("created_at", ascending: true)
             .execute()
             .value as [AvaTask] {
-            urgent = incomplete.filter { $0.priority == "urgent" }
-            normal = incomplete.filter { $0.priority != "urgent" }
+            // A task belongs to "today" if it's undated, due today, or overdue.
+            // Future-dated tasks live in Upcoming until their day arrives.
+            let endOfToday = Calendar.current.startOfDay(for: Date()).addingTimeInterval(86_400)
+            let today  = incomplete.filter { $0.dueDate == nil || $0.dueDate! < endOfToday }
+            upcoming   = incomplete.filter { $0.dueDate != nil && $0.dueDate! >= endOfToday }
+                                   .sorted { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
+            urgent = today.filter { $0.priority == "urgent" }
+            normal = today.filter { $0.priority != "urgent" }
         }
 
         if let completed = try? await supabase
@@ -66,6 +75,7 @@ final class TaskStore {
     func complete(_ task: AvaTask) async {
         urgent.removeAll { $0.id == task.id }
         normal.removeAll { $0.id == task.id }
+        upcoming.removeAll { $0.id == task.id }
         var t = task; t.completed = true
         done.insert(t, at: 0)
 
@@ -80,7 +90,11 @@ final class TaskStore {
     func uncomplete(_ task: AvaTask) async {
         done.removeAll { $0.id == task.id }
         var t = task; t.completed = false
-        if t.priority == "urgent" { urgent.insert(t, at: 0) }
+        let endOfToday = Calendar.current.startOfDay(for: Date()).addingTimeInterval(86_400)
+        if let due = t.dueDate, due >= endOfToday {
+            upcoming.append(t)
+            upcoming.sort { ($0.dueDate ?? .distantFuture) < ($1.dueDate ?? .distantFuture) }
+        } else if t.priority == "urgent" { urgent.insert(t, at: 0) }
         else { normal.append(t) }
 
         let q = try? supabase.from("tasks")
@@ -114,9 +128,10 @@ final class TaskStore {
     // MARK: - Delete
 
     func delete(_ task: AvaTask) async {
-        urgent.removeAll { $0.id == task.id }
-        normal.removeAll { $0.id == task.id }
-        done.removeAll   { $0.id == task.id }
+        urgent.removeAll   { $0.id == task.id }
+        normal.removeAll   { $0.id == task.id }
+        upcoming.removeAll { $0.id == task.id }
+        done.removeAll     { $0.id == task.id }
         _ = try? await supabase.from("tasks").delete(returning: .minimal)
             .eq("id", value: task.id.uuidString).execute()
     }
