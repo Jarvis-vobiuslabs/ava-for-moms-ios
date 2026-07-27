@@ -24,12 +24,27 @@ extension GroceryListItem: Decodable {
 
 // MARK: - Store
 
+struct GroceryListInfo: Identifiable, Decodable, Equatable {
+    let id: UUID
+    var storeName: String?
+
+    enum CodingKeys: String, CodingKey {
+        case id
+        case storeName = "store_name"
+    }
+
+    var displayName: String { storeName?.isEmpty == false ? storeName! : "My List" }
+}
+
 @Observable
 final class GroceryStore {
 
     var items: [GroceryListItem] = []
+    var lists: [GroceryListInfo] = []
     var activeListId: UUID?
     var isLoading = false
+
+    var activeList: GroceryListInfo? { lists.first { $0.id == activeListId } }
 
     var unchecked: [GroceryListItem] { items.filter { !$0.checked } }
     var checked:   [GroceryListItem] { items.filter {  $0.checked } }
@@ -56,45 +71,90 @@ final class GroceryStore {
         isLoading = true
         defer { isLoading = false }
 
-        struct ListRow: Decodable { let id: UUID }
-
-        // Get or create active list
-        let listId: UUID
-        if let existing = activeListId {
-            listId = existing
-        } else if let rows = try? await supabase
+        // All unarchived lists, oldest first (oldest = the default list Ava
+        // adds to from chat)
+        lists = (try? await supabase
             .from("grocery_lists")
-            .select("id")
+            .select("id, store_name")
             .eq("user_id", value: userId.uuidString)
             .eq("archived", value: false)
-            .order("created_at", ascending: false)
-            .limit(1)
+            .order("created_at", ascending: true)
             .execute()
-            .value as [ListRow],
-                  let first = rows.first {
-            listId = first.id
-            activeListId = first.id
-        } else {
-            // Create a new list
+            .value as [GroceryListInfo]) ?? []
+
+        if lists.isEmpty {
             let newId = UUID()
             _ = try? await (try? supabase.from("grocery_lists").insert([
-                "id":       AnyJSON.string(newId.uuidString),
-                "user_id":  AnyJSON.string(userId.uuidString),
-                "archived": .bool(false),
+                "id":         AnyJSON.string(newId.uuidString),
+                "user_id":    AnyJSON.string(userId.uuidString),
+                "store_name": AnyJSON.string("My List"),
+                "archived":   .bool(false),
             ] as [String: AnyJSON], returning: .minimal))?.execute()
-            listId = newId
-            activeListId = newId
+            lists = [GroceryListInfo(id: newId, storeName: "My List")]
         }
 
-        if let loaded = try? await supabase
+        if activeListId == nil || !lists.contains(where: { $0.id == activeListId }) {
+            activeListId = lists.first?.id
+        }
+
+        await loadItems()
+    }
+
+    private func loadItems() async {
+        guard let listId = activeListId else { items = []; return }
+        items = (try? await supabase
             .from("grocery_items")
             .select("id, list_id, name, quantity, category, tag, checked, added_by")
             .eq("list_id", value: listId.uuidString)
             .order("created_at", ascending: true)
             .execute()
-            .value as [GroceryListItem] {
-            items = loaded
+            .value as [GroceryListItem]) ?? []
+    }
+
+    // MARK: - Manage lists
+
+    func switchTo(_ list: GroceryListInfo) async {
+        guard list.id != activeListId else { return }
+        activeListId = list.id
+        items = []
+        await loadItems()
+    }
+
+    func createList(named name: String, userId: UUID) async {
+        let trimmed = name.trimmingCharacters(in: .whitespaces)
+        guard !trimmed.isEmpty else { return }
+        let newId = UUID()
+        _ = try? await (try? supabase.from("grocery_lists").insert([
+            "id":         AnyJSON.string(newId.uuidString),
+            "user_id":    AnyJSON.string(userId.uuidString),
+            "store_name": AnyJSON.string(trimmed),
+            "archived":   .bool(false),
+        ] as [String: AnyJSON], returning: .minimal))?.execute()
+        lists.append(GroceryListInfo(id: newId, storeName: trimmed))
+        activeListId = newId
+        items = []
+    }
+
+    func deleteList(_ list: GroceryListInfo, userId: UUID) async {
+        // Archive rather than hard-delete so nothing is lost by accident
+        let q = try? supabase.from("grocery_lists")
+            .update(["archived": AnyJSON.bool(true)], returning: .minimal)
+            .eq("id", value: list.id.uuidString)
+        _ = try? await q?.execute()
+        lists.removeAll { $0.id == list.id }
+        if activeListId == list.id {
+            activeListId = lists.first?.id
+            await load(userId: userId)   // recreates a default list if none left
         }
+    }
+
+    // MARK: - Clear whole list
+
+    func clearAll() async {
+        guard let listId = activeListId else { return }
+        items = []
+        _ = try? await supabase.from("grocery_items").delete(returning: .minimal)
+            .eq("list_id", value: listId.uuidString).execute()
     }
 
     // MARK: - Toggle

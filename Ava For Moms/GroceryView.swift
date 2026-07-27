@@ -5,6 +5,10 @@ struct GroceryView: View {
     @Environment(GroceryStore.self) private var store
     @State private var showAddItem = false
     @State private var newItemName = ""
+    @State private var showNewListAlert = false
+    @State private var newListName = ""
+    @State private var pendingDeleteList: GroceryListInfo?
+    @State private var showClearAllConfirm = false
 
     var body: some View {
         ZStack {
@@ -31,7 +35,53 @@ struct GroceryView: View {
                             .background(RoundedRectangle(cornerRadius: 16).fill(AvaTheme.sage))
                         }
                     }
-                    .padding(.horizontal, 22).padding(.top, 60).padding(.bottom, 16)
+                    .padding(.horizontal, 22).padding(.top, 60).padding(.bottom, 12)
+
+                    // ── List tabs ─────────────────────────────────────────
+                    ScrollView(.horizontal, showsIndicators: false) {
+                        HStack(spacing: 8) {
+                            ForEach(store.lists) { list in
+                                Button {
+                                    _Concurrency.Task { await store.switchTo(list) }
+                                } label: {
+                                    Text(list.displayName)
+                                        .font(AvaTheme.font(13, weight: .bold))
+                                        .foregroundStyle(list.id == store.activeListId ? .white : AvaTheme.inkMute)
+                                        .padding(.horizontal, 16).padding(.vertical, 9)
+                                        .background(Capsule().fill(list.id == store.activeListId
+                                                                   ? AnyShapeStyle(AvaTheme.blushTerracotta)
+                                                                   : AnyShapeStyle(AvaTheme.cream)))
+                                        .contentShape(Capsule())
+                                }
+                                .buttonStyle(.plain)
+                                .contextMenu {
+                                    if store.lists.count > 1 {
+                                        Button(role: .destructive) {
+                                            pendingDeleteList = list
+                                        } label: {
+                                            Label("Delete \"\(list.displayName)\"", systemImage: "trash")
+                                        }
+                                    }
+                                }
+                            }
+                            Button {
+                                newListName = ""
+                                showNewListAlert = true
+                            } label: {
+                                HStack(spacing: 5) {
+                                    Image(systemName: "plus").font(.system(size: 11, weight: .bold))
+                                    Text("New list").font(AvaTheme.font(13, weight: .bold))
+                                }
+                                .foregroundStyle(AvaTheme.terracotta)
+                                .padding(.horizontal, 14).padding(.vertical, 9)
+                                .background(Capsule().stroke(AvaTheme.terracotta.opacity(0.45), lineWidth: 1.5))
+                                .contentShape(Capsule())
+                            }
+                            .buttonStyle(.plain)
+                        }
+                        .padding(.horizontal, 18)
+                    }
+                    .padding(.bottom, 14)
 
                     // ── Add item row ──────────────────────────────────────
                     HStack(spacing: 12) {
@@ -73,22 +123,41 @@ struct GroceryView: View {
                         grocerySection(title: section.title, items: section.items)
                     }
 
-                    // ── Clear checked button ──────────────────────────────
-                    if !store.checked.isEmpty {
-                        Button {
-                            _Concurrency.Task { await store.clearChecked() }
-                        } label: {
-                            HStack(spacing: 8) {
-                                Image(systemName: "trash").font(.system(size: 13, weight: .semibold))
-                                Text("Clear \(store.checked.count) checked")
-                                    .font(AvaTheme.font(14, weight: .semibold))
+                    // ── Clear buttons ─────────────────────────────────────
+                    if !store.items.isEmpty {
+                        HStack(spacing: 10) {
+                            if !store.checked.isEmpty {
+                                Button {
+                                    _Concurrency.Task { await store.clearChecked() }
+                                } label: {
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "checkmark.circle").font(.system(size: 13, weight: .semibold))
+                                        Text("Clear \(store.checked.count) checked")
+                                            .font(AvaTheme.font(14, weight: .semibold))
+                                    }
+                                    .foregroundStyle(AvaTheme.inkMute)
+                                    .frame(maxWidth: .infinity).padding(.vertical, 14)
+                                    .overlay(RoundedRectangle(cornerRadius: 14).stroke(AvaTheme.line, lineWidth: 1.5))
+                                    .contentShape(Rectangle())
+                                }
+                                .buttonStyle(.plain)
                             }
-                            .foregroundStyle(AvaTheme.inkMute)
-                            .frame(maxWidth: .infinity).padding(.vertical, 14)
-                            .overlay(RoundedRectangle(cornerRadius: 14).stroke(AvaTheme.line, lineWidth: 1.5))
+                            Button {
+                                showClearAllConfirm = true
+                            } label: {
+                                HStack(spacing: 8) {
+                                    Image(systemName: "trash").font(.system(size: 13, weight: .semibold))
+                                    Text("Clear list")
+                                        .font(AvaTheme.font(14, weight: .semibold))
+                                }
+                                .foregroundStyle(Color(hex: "C0392B"))
+                                .frame(maxWidth: .infinity).padding(.vertical, 14)
+                                .overlay(RoundedRectangle(cornerRadius: 14).stroke(Color(hex: "C0392B").opacity(0.35), lineWidth: 1.5))
+                                .contentShape(Rectangle())
+                            }
+                            .buttonStyle(.plain)
                         }
-                        .contentShape(Rectangle())
-                        .buttonStyle(.plain).padding(.horizontal, 18).padding(.top, 8)
+                        .padding(.horizontal, 18).padding(.top, 8)
                     }
 
                     Spacer().frame(height: 130)
@@ -97,6 +166,35 @@ struct GroceryView: View {
         }
         .task {
             if let userId = auth.currentUserId { await store.load(userId: userId) }
+        }
+        .alert("New list", isPresented: $showNewListAlert) {
+            TextField("List name (e.g. Costco)", text: $newListName)
+            Button("Create") {
+                guard let userId = auth.currentUserId else { return }
+                _Concurrency.Task { await store.createList(named: newListName, userId: userId) }
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .confirmationDialog(
+            "Delete \"\(pendingDeleteList?.displayName ?? "")\"?",
+            isPresented: Binding(get: { pendingDeleteList != nil },
+                                 set: { if !$0 { pendingDeleteList = nil } }),
+            titleVisibility: .visible
+        ) {
+            Button("Delete List", role: .destructive) {
+                guard let list = pendingDeleteList, let userId = auth.currentUserId else { return }
+                pendingDeleteList = nil
+                _Concurrency.Task { await store.deleteList(list, userId: userId) }
+            }
+            Button("Cancel", role: .cancel) { pendingDeleteList = nil }
+        } message: {
+            Text("The list and its items will be removed from Grocery.")
+        }
+        .confirmationDialog("Clear this whole list?", isPresented: $showClearAllConfirm, titleVisibility: .visible) {
+            Button("Clear Everything", role: .destructive) {
+                _Concurrency.Task { await store.clearAll() }
+            }
+            Button("Cancel", role: .cancel) {}
         }
     }
 

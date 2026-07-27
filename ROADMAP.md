@@ -80,8 +80,8 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 - [x] **20. Events with no time default to midnight → 8am** — done July 22:
   chat prompt deployed (appointments default 8am, never midnight; whole-day
   things use all_day) and the app now shows "All day" instead of 12:00 AM.
-- [ ] **21. Account rows: full pill clickable** — contentShape needs to be on
-  the button LABEL (inside), not the button; arrow/text-only tap area now.
+- [x] **21. Account rows: full pill clickable** — fixed July 22: contentShape
+  moved onto the row label so the whole pill (including the middle gap) taps.
 - [x] **22. Art Studio delivery when screen closed** — done July 22: opening
   the studio or gallery resolves any pending generations server-side (also
   rescues the stranded test images); loading square now says finished
@@ -90,9 +90,11 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
 ### Features
 - [x] **23. Notes: delete button** — done July 22: visible trash button on
   every note card with confirm dialog (swipe-to-delete kept).
-- [ ] **24. Grocery: multiple lists + clear buttons** — schema already
-  supports lists (grocery_lists). UI: list switcher, new/rename/archive,
-  "clear checked items" and "clear all" actions.
+- [x] **24. Grocery: multiple lists + clear buttons** — done July 22: tab
+  pills across the top (tap to switch, long-press to delete, "+ New list"
+  with naming), Clear checked + Clear list (confirmed) buttons; lists are
+  archived not hard-deleted; Ava's chat additions go to the first/default
+  list (chat function redeployed).
 - [ ] **25. Calendar upgrades** — month picker dropdown, "back to today"
   button, and dots on days that have events in month view.
 

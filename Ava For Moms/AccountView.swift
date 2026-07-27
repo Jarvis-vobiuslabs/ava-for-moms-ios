@@ -320,6 +320,9 @@ struct AccountView: View {
             Image(systemName: "chevron.right").font(.system(size: 12, weight: .semibold)).foregroundStyle(AvaTheme.inkSoft)
         }
         .padding(16)
+        // contentShape must live on the LABEL for plain buttons — outside the
+        // Button it leaves the Spacer gap untappable
+        .contentShape(Rectangle())
     }
 }
 

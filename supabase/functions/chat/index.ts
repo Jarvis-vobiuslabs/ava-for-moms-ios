@@ -138,9 +138,10 @@ async function executeTool(name: string, input: any, admin: any, userId: string,
   }
 
   if (name === "add_grocery_item") {
-    // Find or create active grocery list
+    // Add to the user's default (oldest) list — matches the first tab in app
     const { data: lists } = await admin.from("grocery_lists")
-      .select("id").eq("user_id", userId).eq("archived", false).limit(1)
+      .select("id").eq("user_id", userId).eq("archived", false)
+      .order("created_at", { ascending: true }).limit(1)
     let listId: string
     if (lists && lists.length > 0) {
       listId = lists[0].id
