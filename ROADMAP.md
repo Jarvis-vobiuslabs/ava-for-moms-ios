@@ -95,8 +95,9 @@ Working checklist from Nathan's notes (July 2026). One at a time; check off as s
   with naming), Clear checked + Clear list (confirmed) buttons; lists are
   archived not hard-deleted; Ava's chat additions go to the first/default
   list (chat function redeployed).
-- [ ] **25. Calendar upgrades** — month picker dropdown, "back to today"
-  button, and dots on days that have events in month view.
+- [x] **25. Calendar upgrades** — done July 22: tap the month name to expand
+  a month grid (event dots on busy days, prev/next month arrows), tap a day
+  to jump the week view there, and a Today pill whenever you're elsewhere.
 
 ## Done
 

@@ -1,34 +1,29 @@
-# Version 1.1 — App Store "What's New" (ASC-safe, plain characters)
+# Version 1.2 — App Store "What's New" (plain characters)
 
-Ava just got her biggest update yet!
+Little things that make every day smoother.
 
-NEW: Ava's Art Studio - ask Ava to create colouring pages with your
-kids' names, birthday cards, bedtime art and more. 10 free creations
-every month, on every plan. Save them straight to your Photos.
+Calendar, leveled up - tap the month name to open a full month view with
+dots on your busy days, jump to any date, and get back with the new
+Today button. All-day events now say "All day" instead of midnight.
 
-Send Ava photos - snap the school newsletter, a permission slip, or
-anything on the fridge, and she'll read it and help.
+Multiple grocery lists - keep separate lists for Costco, the weekly
+shop, or anything else. Switch with one tap, add new lists with a name,
+and tidy up with Clear Checked or Clear List buttons.
 
-Talk instead of type - tap the new mic button and just say it.
+Smarter to-do list - tasks due tomorrow now wait in a new Upcoming
+section instead of crowding today. Today's Focus shows only what
+actually needs you today.
 
-Smarter with time - Ava now knows your timezone. Morning check-ins
-arrive at 7am YOUR time, and a new evening check-in helps you wrap up
-the day (with a gentle nudge if tasks are still open).
+Art Studio improvements - your images now finish even if you close the
+screen; they will be waiting in your gallery. Better loading view, and
+clearer messages if a creation does not come through (your credit is
+always refunded automatically).
 
-Quote of the day - flip it on in Account settings for a little morning
-motivation with your brief.
+Plus polish everywhere:
+- Swipe down in chat to tuck the keyboard away
+- Delete button on notes (swipe still works too)
+- Events without a time now land at a sensible 8am, never midnight
+- Every button and row responds across its full width
 
-Chat history - look back through everything you and Ava have talked
-about, or clear it whenever you like.
-
-Plus lots of love everywhere:
-- "Remind me today" now works without picking a time
-- No more duplicate calendar events
-- Bigger text and easier-to-tap buttons throughout - and Ava now
-  respects your iPhone's Text Size setting
-- Your Today screen loads instantly
-- A warm welcome guide for new members
-- A little celebration (and a gold star) when you go Pro
-- Ava's memory is sharper than ever
-
-Thanks for letting Ava help carry the mental load. More coming soon!
+Thanks for all the feedback - it is shaping Ava every week. Keep it
+coming.

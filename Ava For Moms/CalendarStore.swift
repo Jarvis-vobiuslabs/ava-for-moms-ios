@@ -193,6 +193,39 @@ final class CalendarStore {
         events.filter { Calendar.current.isDate($0.startsAt, inSameDayAs: date) }
     }
 
+    // MARK: - Month overview (dots in the month grid)
+
+    var monthEventDays: Set<Date> = []
+
+    func loadMonthDays(userId: UUID, month: Date) async {
+        let cal = Calendar.current
+        guard let interval = cal.dateInterval(of: .month, for: month) else { return }
+        var days = Set<Date>()
+
+        struct Row: Decodable {
+            let startsAt: Date
+            enum CodingKeys: String, CodingKey { case startsAt = "starts_at" }
+        }
+        let formatter = ISO8601DateFormatter()
+        let rows: [Row] = (try? await supabase
+            .from("calendar_events")
+            .select("starts_at")
+            .eq("user_id", value: userId.uuidString)
+            .gte("starts_at", value: formatter.string(from: interval.start))
+            .lt("starts_at", value: formatter.string(from: interval.end))
+            .execute()
+            .value as [Row]) ?? []
+        for row in rows { days.insert(cal.startOfDay(for: row.startsAt)) }
+
+        if calendarAccessGranted {
+            let predicate = ekStore.predicateForEvents(withStart: interval.start, end: interval.end, calendars: nil)
+            for ek in ekStore.events(matching: predicate) {
+                days.insert(cal.startOfDay(for: ek.startDate))
+            }
+        }
+        monthEventDays = days
+    }
+
     // MARK: - Create event
 
     func createEvent(
